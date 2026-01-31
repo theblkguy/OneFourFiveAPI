@@ -1,0 +1,13 @@
+# OneFourFive API — run with: docker compose up
+# Builds the image (if needed), starts the container, maps port 3000.
+# Stop with Ctrl+C, or: docker compose down
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    # Optional: use a .env file for PORT or other vars
+    # env_file: .env

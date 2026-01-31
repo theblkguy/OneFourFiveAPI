@@ -33,11 +33,22 @@ const TEMPLATES = [
   { genre: 'avantGarde', style: 'avant-garde', mood: 'calm', romanPattern: ['I', 'IV', 'iii', 'vi'], defaultBpm: 85 },
   { genre: 'avantGarde', style: 'borrowed', mood: 'neutral', romanPattern: ['I', 'bVII', 'IV', 'I'], defaultBpm: 95 },
 
-  // --- Anime ---
+  // --- Anime (J-pop / anime OP/ED; royal road IV–V–iii–vi and variants) ---
   { genre: 'anime', style: 'royalRoad', mood: 'upbeat', romanPattern: ['IV', 'V', 'iii', 'vi'], defaultBpm: 98 },
+  { genre: 'anime', style: 'royalRoad7', mood: 'calm', romanPattern: ['IVmaj7', 'V7', 'iii7', 'vi7'], defaultBpm: 90 },
+  { genre: 'anime', style: 'ghibli', mood: 'calm', romanPattern: ['IVmaj7', 'V7', 'iii7', 'vi7'], defaultBpm: 82, voicing: 'quartal' },
+  { genre: 'anime', style: 'resolve7', mood: 'calm', romanPattern: ['IVmaj7', 'V7', 'iii7', 'vi7', 'Imaj7'], defaultBpm: 88 },
+  { genre: 'anime', style: 'nostalgic7', mood: 'calm', romanPattern: ['vi7', 'IVmaj7', 'Imaj7', 'V7'], defaultBpm: 78 },
+  { genre: 'anime', style: 'whimsical9', mood: 'upbeat', romanPattern: ['Imaj9', 'V7', 'vim7', 'IVmaj7'], defaultBpm: 95 },
   { genre: 'anime', style: 'short', mood: 'upbeat', romanPattern: ['IV', 'V', 'vi'], defaultBpm: 102 },
   { genre: 'anime', style: 'resolve', mood: 'calm', romanPattern: ['IV', 'V', 'iii', 'vi', 'I'], defaultBpm: 95 },
+  { genre: 'anime', style: 'resolveDirect', mood: 'calm', romanPattern: ['IV', 'V', 'vi', 'I'], defaultBpm: 92 },
+  { genre: 'anime', style: 'reverseResolve', mood: 'calm', romanPattern: ['vi', 'V', 'IV', 'I'], defaultBpm: 88 },
   { genre: 'anime', style: 'emotional', mood: 'dark', romanPattern: ['vi', 'IV', 'I', 'V'], defaultBpm: 87 },
+  { genre: 'anime', style: 'nostalgic', mood: 'calm', romanPattern: ['vi', 'IV', 'I', 'V'], defaultBpm: 80 },
+  { genre: 'anime', style: 'whimsical', mood: 'upbeat', romanPattern: ['I', 'V', 'vi', 'IV'], defaultBpm: 100 },
+  { genre: 'anime', style: 'ascending', mood: 'upbeat', romanPattern: ['I', 'iii', 'IV', 'V'], defaultBpm: 102 },
+  { genre: 'anime', style: 'rotated', mood: 'upbeat', romanPattern: ['IV', 'I', 'V', 'vi'], defaultBpm: 98 },
   { genre: 'anime', style: 'epic', mood: 'upbeat', romanPattern: ['I', 'IV', 'V', 'IV'], defaultBpm: 108 },
   { genre: 'anime', style: 'ballad', mood: 'calm', romanPattern: ['I', 'IV', 'vi', 'V'], defaultBpm: 82 },
   { genre: 'anime', style: 'opEd', mood: 'upbeat', romanPattern: ['I', 'V', 'vi', 'IV'], defaultBpm: 108 },

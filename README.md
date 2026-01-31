@@ -17,6 +17,51 @@ npm start
 
 Server runs at `http://localhost:3000` (or `PORT` from env).
 
+## Run with Docker
+
+**Using Docker Compose (easiest):**
+
+```bash
+docker compose up
+```
+
+Builds the image (first time), starts the API, and maps port 3000. Open [http://localhost:3000](http://localhost:3000) and [http://localhost:3000/api-docs](http://localhost:3000/api-docs). Stop with `Ctrl+C`, or run `docker compose down`.
+
+**Using Docker directly:**
+
+```bash
+docker build -t onefourfive-api .
+docker run -p 3000:3000 onefourfive-api
+```
+
+**What’s going on:** The **Dockerfile** uses a **multi-stage build**: stage 1 installs production dependencies only; stage 2 copies those deps plus your app into the final image (no devDependencies, smaller image). The app runs as the **non-root `node` user** (security best practice). **HEALTHCHECK** lets Docker and orchestrators (K8s, Render, etc.) know when the API is up. **Docker build** turns this into an image; **docker run** or **docker compose up** starts a container and maps port 3000 so you can hit the API at localhost. The **.dockerignore** keeps tests and dev config out of the image so it stays small and builds faster.
+
+## Deploy for free (Render)
+
+You can host this API for free on [Render](https://render.com):
+
+1. Push this repo to GitHub.
+2. Go to [dashboard.render.com](https://dashboard.render.com), sign in, and click **New** → **Web Service**.
+3. Connect your GitHub account and select this repository.
+4. Render will detect `render.yaml` (Blueprint). Confirm **Build command:** `npm install`, **Start command:** `npm start`, and **Plan:** Free, then create the service.
+
+Your API will be live at `https://<your-service-name>.onrender.com`. Use that base URL for the API and for the interactive docs: `https://<your-service-name>.onrender.com/api-docs`.
+
+**Free tier note:** The service **spins down after 15 minutes of no traffic**. The first request after a spin-down can take **30–60 seconds** while the server starts; later requests are fast until the next idle period. This is normal for Render’s free tier and is fine for demos and portfolio use.
+
+## Development
+
+```bash
+npm run lint    # ESLint on src/
+npm test        # Jest unit + integration tests
+npm run test:watch   # Jest watch mode
+```
+
+## API documentation
+
+- **Interactive docs (Swagger UI):** [http://localhost:3000/api-docs](http://localhost:3000/api-docs) — try all endpoints from the browser.
+- **OpenAPI 3 spec (JSON):** [http://localhost:3000/openapi.json](http://localhost:3000/openapi.json) — for codegen, Postman, or other API tools.
+
 ## Endpoints
 
 ### GET /progressions
@@ -205,7 +250,7 @@ curl "http://localhost:3000/progressions/options"
 - **Common (pop, rock):** I–V–vi–IV, I–IV–vi–V, vi–IV–I–V, 50s, ballad, Andalusian (minor), Creep (I–III–IV–iv), Dark resolve (I–iv–IV–I), Neapolitan (I–bII–V–I), etc.
 - **Rock (borrowed chords):** I–bVII–IV–I (mixolydian), I–bVI–bVII–I (epic).
 - **Jazz / avant-garde:** ii–V–I, I–vi–ii–V, iii–vi–ii–V, I–bVII–IV–I, etc.
-- **Anime:** Royal Road (IV–V–iii–vi), short, resolve, emotional, epic, ballad, op/ed.
+- **Anime:** Royal Road (IV–V–iii–vi), short, resolve, resolveDirect, reverseResolve, emotional, nostalgic, whimsical, ascending, rotated, epic, ballad, op/ed. **Extended harmony:** royalRoad7, resolve7, nostalgic7, whimsical9 (7ths/9ths: IVmaj7, V7, iii7, vi7, Imaj7, etc.). **Quartal voicing:** style `ghibli` returns the same 7th progression with `voicing: "quartal"` for Ghibli-style voicing hints.
 - **Ambient / cinematic:** I–IV–I, I–vi–I, minimal, cinematic minor, bVI–bVII–I (epic).
 
 ## License

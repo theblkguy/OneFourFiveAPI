@@ -1,13 +1,15 @@
 const { getAllTemplates } = require('../data/templates');
-const { getRootIndex, romanToChord, chordToRoman } = require('../lib/musicTheory');
+const { getRootIndex, romanToChord, chordToRoman, getBaseRoman } = require('../lib/musicTheory');
 
 const VALID_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
 const VALID_SCALES = ['major', 'minor'];
+const MAX_CHORDS = 50;
 
 function normalizeRoman(r) {
-  const s = (r || '').trim();
-  if (s === 'ii°' || s === 'iio') return 'iio';
-  return s;
+  const base = getBaseRoman((r || '').trim());
+  if (!base) return (r || '').trim();
+  if (base === 'ii°' || base === 'iio') return 'iio';
+  return base;
 }
 
 /**
@@ -19,6 +21,9 @@ function resolveProgressions(params) {
 
   if (!chords || !Array.isArray(chords) || chords.length === 0) {
     return { error: 'chords required', message: 'Provide chords as an array (e.g. ["C", "G", "Am"])' };
+  }
+  if (chords.length > MAX_CHORDS) {
+    return { error: 'too many chords', message: `Maximum ${MAX_CHORDS} chords per request` };
   }
   if (!key || !scale) {
     return { error: 'key and scale required', message: 'Provide key (e.g. C) and scale (major or minor) to resolve chords' };

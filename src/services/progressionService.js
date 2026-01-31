@@ -3,6 +3,8 @@ const { getRootIndex, romanToChord } = require('../lib/musicTheory');
 
 const VALID_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
 const VALID_SCALES = ['major', 'minor'];
+const MAX_BARS = 10000;
+const MAX_DURATION_SECONDS = 86400; // 24 hours
 
 function getProgressions(params) {
   const { key, scale, mood, style, genre, bpm, duration_seconds, bars } = params || {};
@@ -40,11 +42,14 @@ function getProgressions(params) {
 
   let numBars;
   if (duration_seconds != null && !Number.isNaN(Number(duration_seconds)) && Number(duration_seconds) > 0) {
+    const cappedDuration = Math.min(Number(duration_seconds), MAX_DURATION_SECONDS);
     const secondsPerBar = (4 * 60) / bpmNum;
-    numBars = Math.ceil(Number(duration_seconds) / secondsPerBar);
+    numBars = Math.ceil(cappedDuration / secondsPerBar);
+    numBars = Math.min(numBars, MAX_BARS);
     numBars = Math.max(patternLen, Math.ceil(numBars / patternLen) * patternLen);
   } else if (bars != null && !Number.isNaN(Number(bars)) && Number(bars) > 0) {
     numBars = Math.ceil(Number(bars));
+    numBars = Math.min(numBars, MAX_BARS);
     numBars = Math.max(patternLen, Math.ceil(numBars / patternLen) * patternLen);
   } else {
     numBars = Math.ceil(8 / patternLen) * patternLen;
@@ -92,6 +97,9 @@ function getProgressions(params) {
   };
   if (durationSec != null) {
     response.duration_seconds = durationSec;
+  }
+  if (template.voicing) {
+    response.voicing = template.voicing;
   }
   return response;
 }

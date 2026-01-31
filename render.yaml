@@ -1,0 +1,14 @@
+# Render Blueprint — free tier web service
+# Deploy: push to GitHub, then connect this repo at https://dashboard.render.com
+# Free tier: service spins down after 15 min inactivity; first request may take ~30–60s to wake up.
+
+services:
+  - type: web
+    name: onefourfive-api
+    runtime: node
+    plan: free
+
+    buildCommand: npm install
+    startCommand: npm start
+
+    healthCheckPath: /health

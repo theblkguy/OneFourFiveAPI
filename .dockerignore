@@ -1,0 +1,26 @@
+# Don't copy these into the image — keeps the image smaller and avoids overwriting
+
+node_modules
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Tests and tooling (not needed to run the API)
+coverage
+*.test.js
+__tests__
+jest.config.js
+eslint.config.js
+.eslintrc*
+
+# Docs and misc
+README.md
+LICENSE
+.cursor
+mcps
+*.md
+
+# CI (not needed inside container)
+.github
