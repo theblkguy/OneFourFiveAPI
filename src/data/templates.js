@@ -17,6 +17,11 @@ const TEMPLATES = [
   { genre: 'pop', style: 'simple2', mood: 'neutral', romanPattern: ['I', 'IV', 'V', 'I'], defaultBpm: 105 },
   { genre: 'pop', style: 'emotional', mood: 'upbeat', romanPattern: ['I', 'V', 'vi', 'IV'], defaultBpm: 95 },
   { genre: 'pop', style: 'andalusian', mood: 'dark', romanPattern: ['i', 'bVII', 'bVI', 'V'], defaultBpm: 85, scaleRequired: 'minor' },
+  { genre: 'pop', style: 'creep', mood: 'dark', romanPattern: ['I', 'III', 'IV', 'iv'], defaultBpm: 72 },
+  { genre: 'rock', style: 'epic', mood: 'upbeat', romanPattern: ['I', 'bVI', 'bVII', 'I'], defaultBpm: 100 },
+  { genre: 'rock', style: 'darkResolve', mood: 'dark', romanPattern: ['I', 'iv', 'IV', 'I'], defaultBpm: 80 },
+  { genre: 'cinematic', style: 'epic', mood: 'upbeat', romanPattern: ['bVI', 'bVII', 'I'], defaultBpm: 90 },
+  { genre: 'pop', style: 'neapolitan', mood: 'neutral', romanPattern: ['I', 'bII', 'V', 'I'], defaultBpm: 85 },
 
   // --- Jazz / avant-garde ---
   { genre: 'jazz', style: 'basic', mood: 'neutral', romanPattern: ['ii', 'V', 'I'], defaultBpm: 115 },

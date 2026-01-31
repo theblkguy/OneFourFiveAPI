@@ -83,6 +83,60 @@ Returns a chord progression in the given key and scale.
 }
 ```
 
+### POST /progressions/resolve
+
+Returns full progressions from templates that contain all of your input chords, filtered by preferences.
+
+**Request body (JSON)**
+
+| Field   | Type   | Required | Description |
+|---------|--------|----------|-------------|
+| `chords`| array  | yes      | Chord symbols (e.g. `["C", "G", "Am"]`) |
+| `key`   | string | yes      | Root note: C, C#, Db, D, … B |
+| `scale` | string | yes      | `major` or `minor` |
+| `genre` | string | no       | Filter by genre (pop, rock, jazz, etc.) |
+| `mood`  | string | no       | Filter by mood (calm, upbeat, dark, neutral) |
+| `style` | string | no       | Filter by style (e.g. creep, epic, ballad) |
+
+**Example request**
+
+```bash
+curl -X POST http://localhost:3000/progressions/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"chords": ["C", "G", "Am"], "key": "C", "scale": "major", "genre": "pop"}'
+```
+
+**Example response (200)**
+
+```json
+{
+  "input_chords": ["C", "G", "Am"],
+  "input_romans": ["I", "V", "vi"],
+  "key": "C",
+  "scale": "major",
+  "matches": [
+    {
+      "progression": ["C", "G", "Am", "F"],
+      "roman_pattern": ["I", "V", "vi", "IV"],
+      "genre": "pop",
+      "style": "upbeat",
+      "mood": "upbeat",
+      "default_bpm": 120
+    },
+    {
+      "progression": ["C", "F", "Am", "G"],
+      "roman_pattern": ["I", "IV", "vi", "V"],
+      "genre": "pop",
+      "style": "calm",
+      "mood": "calm",
+      "default_bpm": 90
+    }
+  ]
+}
+```
+
+If no templates match, `matches` is empty and `message` indicates "No templates contain all your chords."
+
 ### GET /progressions/options
 
 Returns allowed values for keys, scales, moods, genres, and styles.
@@ -124,6 +178,22 @@ curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andal
 curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basic"
 ```
 
+**Borrowed chord progressions (Creep, Epic, Dark resolve)**
+
+```bash
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=pop&style=creep"
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=rock&style=epic"
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=rock&style=darkResolve"
+```
+
+**Resolve: find progressions containing your chords**
+
+```bash
+curl -X POST http://localhost:3000/progressions/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"chords": ["C", "G", "Am"], "key": "C", "scale": "major"}'
+```
+
 **List options**
 
 ```bash
@@ -132,10 +202,11 @@ curl "http://localhost:3000/progressions/options"
 
 ## Genre coverage
 
-- **Common (pop, rock):** I–V–vi–IV, I–IV–vi–V, vi–IV–I–V, 50s, ballad, Andalusian (minor), etc.
+- **Common (pop, rock):** I–V–vi–IV, I–IV–vi–V, vi–IV–I–V, 50s, ballad, Andalusian (minor), Creep (I–III–IV–iv), Dark resolve (I–iv–IV–I), Neapolitan (I–bII–V–I), etc.
+- **Rock (borrowed chords):** I–bVII–IV–I (mixolydian), I–bVI–bVII–I (epic).
 - **Jazz / avant-garde:** ii–V–I, I–vi–ii–V, iii–vi–ii–V, I–bVII–IV–I, etc.
 - **Anime:** Royal Road (IV–V–iii–vi), short, resolve, emotional, epic, ballad, op/ed.
-- **Ambient / cinematic:** I–IV–I, I–vi–I, minimal, cinematic minor.
+- **Ambient / cinematic:** I–IV–I, I–vi–I, minimal, cinematic minor, bVI–bVII–I (epic).
 
 ## License
 

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONEFOURFIVE API — Chord Progression Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-panel: #0d0d0d;
+      --border: #1a2a1a;
+      --text: #00ff41;
+      --text-dim: #006622;
+      --glow: rgba(0, 255, 65, 0.3);
+      --cursor: #00ff41;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+
+    body {
+      font-family: 'Share Tech Mono', 'VT323', 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* CRT scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 2px,
+        rgba(0, 0, 0, 0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Subtle noise texture */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      border: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    header::before {
+      content: '▸ ';
+      color: var(--text-dim);
+    }
+    h1 {
+      font-family: 'VT323', monospace;
+      font-size: 1.8rem;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      margin: 0;
+      text-shadow: 0 0 10px var(--glow);
+    }
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+      letter-spacing: 0.1em;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .panel-title {
+      background: var(--bg-panel);
+      padding: 0.5rem 1rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-body { padding: 1rem 1.5rem; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .form-group label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+    }
+    select, input {
+      font-family: inherit;
+      font-size: 0.85rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.5rem;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: var(--text);
+      box-shadow: 0 0 8px var(--glow);
+    }
+    select option {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    button {
+      font-family: inherit;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--text);
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    button:hover {
+      background: var(--text);
+      color: var(--bg);
+      box-shadow: 0 0 12px var(--glow);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.primary {
+      background: var(--text);
+      color: var(--bg);
+    }
+    button.primary:hover {
+      box-shadow: 0 0 16px var(--glow);
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .preset-btn {
+      font-size: 0.7rem;
+      padding: 0.35rem 0.6rem;
+    }
+
+    .output {
+      font-size: 0.8rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 120px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .output.empty {
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    .output.error { color: #ff4444; }
+    .output .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1em;
+      background: var(--cursor);
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .url-display {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+      word-break: break-all;
+      letter-spacing: 0.05em;
+    }
+    .url-display .endpoint { color: var(--text); }
+
+    .status {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+    }
+    .status.loading { color: var(--text); }
+
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+    }
+    footer a { color: var(--text); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Scrollbar styling */
+    .output::-webkit-scrollbar { width: 8px; }
+    .output::-webkit-scrollbar-track { background: var(--bg); }
+    .output::-webkit-scrollbar-thumb { background: var(--border); }
+    .output::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ONEFOURFIVE API</h1>
+      <p class="subtitle">CHORD PROGRESSION GENERATOR — REST INTERFACE v1.0</p>
+    </header>
+
+    <section class="panel">
+      <div class="panel-title">╔══════ PARAMETERS ══════╗</div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>KEY</label>
+            <select id="key">
+              <option value="C">C</option>
+              <option value="C#">C#</option>
+              <option value="Db">Db</option>
+              <option value="D">D</option>
+              <option value="D#">D#</option>
+              <option value="Eb">Eb</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="F#">F#</option>
+              <option value="Gb">Gb</option>
+              <option value="G">G</option>
+              <option value="G#">G#</option>
+              <option value="Ab">Ab</option>
+              <option value="A">A</option>
+              <option value="A#">A#</option>
+              <option value="Bb">Bb</option>
+              <option value="B">B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>SCALE</label>
+            <select id="scale">
+              <option value="major">major</option>
+              <option value="minor">minor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>GENRE</label>
+            <select id="genre">
+              <option value="pop">pop</option>
+              <option value="rock">rock</option>
+              <option value="jazz">jazz</option>
+              <option value="anime">anime</option>
+              <option value="ambient">ambient</option>
+              <option value="cinematic">cinematic</option>
+              <option value="avantGarde">avant-garde</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>MOOD</label>
+            <select id="mood">
+              <option value="">— any —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>STYLE</label>
+            <select id="style">
+              <option value="">— any —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>BPM</label>
+            <input type="number" id="bpm" placeholder="auto" min="1" max="300">
+          </div>
+          <div class="form-group">
+            <label>BARS</label>
+            <input type="number" id="bars" placeholder="8" min="1">
+          </div>
+          <div class="form-group">
+            <label>DURATION (sec)</label>
+            <input type="number" id="duration" placeholder="—" min="1" title="For spoken content / TTS">
+          </div>
+        </div>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; margin-bottom: 0.5rem;">
+          <input type="checkbox" id="simple" checked>
+          Simple response (minimal JSON)
+        </label>
+        <div class="presets">
+          <span style="font-size: 0.65rem; color: var(--text-dim); margin-right: 0.5rem;">PRESETS:</span>
+          <button class="preset-btn" data-preset="basic">Basic (C major)</button>
+          <button class="preset-btn" data-preset="calm">Calm ~10min</button>
+          <button class="preset-btn" data-preset="anime">Anime Royal Road</button>
+          <button class="preset-btn" data-preset="andalusian">Andalusian (A min)</button>
+          <button class="preset-btn" data-preset="jazz">Jazz ii–V–I</button>
+          <button class="preset-btn" data-preset="ambient">Ambient minimal</button>
+        </div>
+        <div class="actions">
+          <button class="primary" id="fetchBtn">▶ EXECUTE REQUEST</button>
+          <button id="curlBtn">COPY CURL</button>
+          <button id="optionsBtn">LOAD OPTIONS</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">╔══════ OUTPUT ══════════╗</div>
+      <div class="panel-body">
+        <div class="url-display" id="urlDisplay"></div>
+        <div class="output empty" id="output"><span class="cursor"></span> Awaiting request...</div>
+        <div class="status" id="status"></div>
+      </div>
+    </section>
+
+    <footer>
+      GET /progressions?key=C&amp;scale=major | GET /progressions/options | GET /health
+    </footer>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    const output = document.getElementById('output');
+    const urlDisplay = document.getElementById('urlDisplay');
+    const statusEl = document.getElementById('status');
+    const fetchBtn = document.getElementById('fetchBtn');
+
+    const presets = {
+      basic: { key: 'C', scale: 'major', genre: 'pop', mood: '', style: '', bpm: '', bars: '8', duration: '', simple: true },
+      calm: { key: 'C', scale: 'major', genre: 'pop', mood: 'calm', style: '', bpm: '', bars: '', duration: '600', simple: true },
+      anime: { key: 'C', scale: 'major', genre: 'anime', mood: '', style: 'royalRoad', bpm: '', bars: '8', duration: '', simple: true },
+      andalusian: { key: 'A', scale: 'minor', genre: 'pop', mood: '', style: 'andalusian', bpm: '', bars: '8', duration: '', simple: true },
+      jazz: { key: 'G', scale: 'major', genre: 'jazz', mood: '', style: 'basic', bpm: '', bars: '8', duration: '', simple: true },
+      ambient: { key: 'C', scale: 'major', genre: 'ambient', mood: '', style: 'minimal', bpm: '', bars: '8', duration: '', simple: true },
+    };
+
+    function getParams() {
+      const params = new URLSearchParams();
+      const key = document.getElementById('key').value;
+      const scale = document.getElementById('scale').value;
+      if (!key || !scale) return null;
+      params.set('key', key);
+      params.set('scale', scale);
+      const mood = document.getElementById('mood').value;
+      const style = document.getElementById('style').value;
+      const genre = document.getElementById('genre').value;
+      const bpm = document.getElementById('bpm').value;
+      const bars = document.getElementById('bars').value;
+      const duration = document.getElementById('duration').value;
+      if (genre) params.set('genre', genre);
+      if (mood) params.set('mood', mood);
+      if (style) params.set('style', style);
+      if (bpm) params.set('bpm', bpm);
+      if (bars) params.set('bars', bars);
+      if (duration) params.set('duration_seconds', duration);
+      if (document.getElementById('simple').checked) params.set('simple', 'true');
+      return params;
+    }
+
+    function buildUrl(endpoint, params) {
+      const q = params ? '?' + params.toString() : '';
+      return `${API_BASE}${endpoint}${q}`;
+    }
+
+    function setStatus(msg, loading = false) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status' + (loading ? ' loading' : '');
+    }
+
+    async function doFetch() {
+      const params = getParams();
+      if (!params) {
+        output.textContent = 'ERROR: key and scale are required.';
+        output.className = 'output error';
+        return;
+      }
+      const url = buildUrl('/progressions', params);
+      urlDisplay.innerHTML = `GET <span class="endpoint">${url}</span>`;
+      output.className = 'output';
+      output.textContent = '';
+      setStatus('Connecting...', true);
+      fetchBtn.disabled = true;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+        output.className = 'output' + (data.error ? ' error' : '');
+        setStatus(`HTTP ${res.status} • ${res.headers.get('content-length') || 0} bytes`);
+      } catch (err) {
+        output.textContent = `NETWORK ERROR: ${err.message}\n\nIs the API running? Try: npm start`;
+        output.className = 'output error';
+        setStatus('Request failed');
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    async function loadOptions() {
+      const url = buildUrl('/progressions/options');
+      urlDisplay.innerHTML = `GET <span class="endpoint">${url}</span>`;
+      output.className = 'output';
+      output.textContent = 'Loading...';
+      setStatus('Fetching options...', true);
+      fetchBtn.disabled = true;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+        output.className = 'output';
+        // Populate mood & style dropdowns from options
+        const moodSelect = document.getElementById('mood');
+        const styleSelect = document.getElementById('style');
+        if (data.moods && data.moods.length) {
+          moodSelect.innerHTML = '<option value="">— any —</option>' +
+            data.moods.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+        if (data.styles && data.styles.length) {
+          styleSelect.innerHTML = '<option value="">— any —</option>' +
+            data.styles.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+        setStatus(`Loaded ${data.keys?.length || 0} keys, ${data.genres?.length || 0} genres`);
+      } catch (err) {
+        output.textContent = `NETWORK ERROR: ${err.message}`;
+        output.className = 'output error';
+        setStatus('Request failed');
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    function copyCurl() {
+      const params = getParams();
+      if (!params) return;
+      const url = buildUrl('/progressions', params);
+      const curl = `curl "${url}"`;
+      navigator.clipboard.writeText(curl).then(() => {
+        setStatus('Curl command copied to clipboard');
+        setTimeout(() => setStatus(''), 2000);
+      });
+    }
+
+    function applyPreset(name) {
+      const p = presets[name];
+      if (!p) return;
+      document.getElementById('key').value = p.key;
+      document.getElementById('scale').value = p.scale;
+      document.getElementById('genre').value = p.genre;
+      document.getElementById('mood').value = p.mood;
+      document.getElementById('style').value = p.style;
+      document.getElementById('bpm').value = p.bpm;
+      document.getElementById('bars').value = p.bars;
+      document.getElementById('duration').value = p.duration;
+      document.getElementById('simple').checked = p.simple;
+    }
+
+    document.getElementById('fetchBtn').addEventListener('click', doFetch);
+    document.getElementById('optionsBtn').addEventListener('click', loadOptions);
+    document.getElementById('curlBtn').addEventListener('click', copyCurl);
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+    });
+  </script>
+</body>
+</html>

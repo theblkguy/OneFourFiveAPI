@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getProgressions, getProgressionsSimple, getOptions } = require('../services/progressionService');
+const { resolveProgressions } = require('../services/resolutionService');
 
 router.get('/', (req, res) => {
   const { key, scale, mood, style, genre, bpm, duration_seconds, bars, simple } = req.query;
@@ -30,6 +31,15 @@ router.get('/', (req, res) => {
 
 router.get('/options', (req, res) => {
   res.json(getOptions());
+});
+
+router.post('/resolve', (req, res) => {
+  const { chords, key, scale, genre, mood, style } = req.body || {};
+  const result = resolveProgressions({ chords, key, scale, genre, mood, style });
+  if (result.error) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
 });
 
 module.exports = router;
