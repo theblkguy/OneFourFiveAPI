@@ -2,7 +2,7 @@
  * OpenAPI 3.0 spec for OneFourFive API.
  * Served at /openapi.json; Swagger UI at /api-docs.
  */
-module.exports = {
+const spec = {
   openapi: '3.0.3',
   info: {
     title: 'OneFourFive API',
@@ -251,3 +251,5 @@ module.exports = {
     },
   },
 };
+
+export default spec;

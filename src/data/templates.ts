@@ -3,7 +3,9 @@
  * Maximum coverage: common, jazz/avant-garde, anime, ambient/cinematic.
  */
 
-const TEMPLATES = [
+import type { Template } from '../types';
+
+export const TEMPLATES: Template[] = [
   // --- Common (pop, rock) ---
   { genre: 'pop', style: 'upbeat', mood: 'upbeat', romanPattern: ['I', 'V', 'vi', 'IV'], defaultBpm: 120 },
   { genre: 'pop', style: 'calm', mood: 'calm', romanPattern: ['I', 'IV', 'vi', 'V'], defaultBpm: 90 },
@@ -62,10 +64,7 @@ const TEMPLATES = [
   { genre: 'ambient', style: 'minimal', mood: 'calm', romanPattern: ['I', 'IV'], defaultBpm: 70 },
 ];
 
-/**
- * Normalize genre for lookup (e.g. "avant-garde" -> "avantGarde").
- */
-const GENRE_ALIASES = {
+const GENRE_ALIASES: Record<string, string> = {
   pop: 'pop',
   rock: 'rock',
   jazz: 'jazz',
@@ -76,12 +75,13 @@ const GENRE_ALIASES = {
   cinematic: 'cinematic',
 };
 
-function getTemplatesByGenre(genre) {
-  const normalized = GENRE_ALIASES[genre && genre.toLowerCase()] || genre;
+export function getTemplatesByGenre(genre: string | null | undefined): Template[] {
+  const normalized =
+    genre == null ? null : (GENRE_ALIASES[genre.toLowerCase()] ?? genre);
   return TEMPLATES.filter((t) => t.genre === normalized);
 }
 
-function getTemplate(genre, moodOrStyle) {
+export function getTemplate(genre: string | null | undefined, moodOrStyle: string | null | undefined): Template | null {
   const candidates = getTemplatesByGenre(genre);
   if (candidates.length === 0) return null;
   if (moodOrStyle) {
@@ -94,13 +94,6 @@ function getTemplate(genre, moodOrStyle) {
   return candidates[0];
 }
 
-function getAllTemplates() {
+export function getAllTemplates(): Template[] {
   return TEMPLATES;
 }
-
-module.exports = {
-  TEMPLATES,
-  getTemplatesByGenre,
-  getTemplate,
-  getAllTemplates,
-};

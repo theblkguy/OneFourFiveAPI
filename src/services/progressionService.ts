@@ -1,12 +1,39 @@
-const { getTemplate, getAllTemplates } = require('../data/templates');
-const { getRootIndex, romanToChord } = require('../lib/musicTheory');
+import { getTemplate, getAllTemplates } from '../data/templates';
+import { getRootIndex, romanToChord } from '../lib/musicTheory';
+import type { ProgressionParams, ServiceError } from '../types';
 
 const VALID_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
 const VALID_SCALES = ['major', 'minor'];
 const MAX_BARS = 10000;
 const MAX_DURATION_SECONDS = 86400; // 24 hours
 
-function getProgressions(params) {
+export interface ProgressionChord {
+  position: number;
+  roman: string;
+  symbol: string;
+  bars: number;
+}
+
+export interface ProgressionSuccess {
+  summary: string;
+  key: string;
+  scale: string;
+  bpm: number;
+  progression: string[];
+  bars: number;
+  bar_duration_seconds: number;
+  mood: string;
+  genre: string;
+  style: string;
+  chords: ProgressionChord[];
+  loop_description: string;
+  duration_seconds?: number;
+  voicing?: string;
+}
+
+export type ProgressionResult = ProgressionSuccess | (ServiceError & { error: string; message: string });
+
+export function getProgressions(params: ProgressionParams | null | undefined): ProgressionResult {
   const { key, scale, mood, style, genre, bpm, duration_seconds, bars } = params || {};
 
   if (!key || !scale) {
@@ -40,7 +67,7 @@ function getProgressions(params) {
   const pattern = template.romanPattern;
   const patternLen = pattern.length;
 
-  let numBars;
+  let numBars: number;
   if (duration_seconds != null && !Number.isNaN(Number(duration_seconds)) && Number(duration_seconds) > 0) {
     const cappedDuration = Math.min(Number(duration_seconds), MAX_DURATION_SECONDS);
     const secondsPerBar = (4 * 60) / bpmNum;
@@ -58,8 +85,8 @@ function getProgressions(params) {
 
   const barDurationSeconds = (4 * 60) / bpmNum;
   const barsPerChord = Math.floor(numBars / patternLen);
-  const chords = [];
-  const progression = [];
+  const chords: ProgressionChord[] = [];
+  const progression: string[] = [];
   for (let i = 0; i < patternLen; i++) {
     const roman = pattern[i];
     const symbol = romanToChord(roman, keyStr, scaleStr);
@@ -81,7 +108,7 @@ function getProgressions(params) {
     ? `${keyStr} ${scaleStr}, ${bpmNum} BPM: ${progressionLine} (${loopCount}×, ~${durationSec}s)`
     : `${keyStr} ${scaleStr}, ${bpmNum} BPM: ${progressionLine} (${numBars} bars)`;
 
-  const response = {
+  const response: ProgressionSuccess = {
     summary,
     key: keyStr,
     scale: scaleStr,
@@ -104,9 +131,19 @@ function getProgressions(params) {
   return response;
 }
 
-function getProgressionsSimple(params) {
+export interface ProgressionSimpleSuccess {
+  summary: string;
+  key: string;
+  scale: string;
+  bpm: number;
+  progression: string[];
+  bars: number;
+  duration_seconds?: number;
+}
+
+export function getProgressionsSimple(params: ProgressionParams | null | undefined): ProgressionSimpleSuccess | ProgressionResult {
   const full = getProgressions(params);
-  if (full.error) return full;
+  if ('error' in full) return full;
   return {
     summary: full.summary,
     key: full.key,
@@ -118,7 +155,13 @@ function getProgressionsSimple(params) {
   };
 }
 
-function getOptions() {
+export function getOptions(): {
+  keys: string[];
+  scales: string[];
+  moods: string[];
+  genres: string[];
+  styles: string[];
+} {
   const templates = getAllTemplates();
   const genres = [...new Set(templates.map((t) => t.genre))];
   const moods = [...new Set(templates.flatMap((t) => (t.mood ? [t.mood] : [])))];
@@ -131,5 +174,3 @@ function getOptions() {
     styles: [...new Set(styles)].filter(Boolean).sort(),
   };
 }
-
-module.exports = { getProgressions, getProgressionsSimple, getOptions };

@@ -1,4 +1,4 @@
-const {
+import {
   getRootIndex,
   getScaleRoots,
   parseRoman,
@@ -7,7 +7,7 @@ const {
   parseChordSymbol,
   getChordQuality,
   getBaseRoman,
-} = require('./musicTheory');
+} from './musicTheory';
 
 describe('musicTheory', () => {
   describe('getRootIndex', () => {
@@ -83,7 +83,7 @@ describe('musicTheory', () => {
       expect(romanToChord('vi', 'C', 'major')).toBe('Am');
     });
     it('converts borrowed bVII in C major (returns sharp root)', () => {
-      expect(romanToChord('bVII', 'C', 'major')).toBe('A#'); // implementation uses ROOTS_SHARP
+      expect(romanToChord('bVII', 'C', 'major')).toBe('A#');
     });
     it('converts iv in C major to Fm', () => {
       expect(romanToChord('iv', 'C', 'major')).toBe('Fm');

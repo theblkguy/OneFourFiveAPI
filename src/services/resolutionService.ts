@@ -1,22 +1,43 @@
-const { getAllTemplates } = require('../data/templates');
-const { getRootIndex, romanToChord, chordToRoman, getBaseRoman } = require('../lib/musicTheory');
+import { getAllTemplates } from '../data/templates';
+import { getRootIndex, romanToChord, chordToRoman, getBaseRoman } from '../lib/musicTheory';
+import type { ResolveParams, ServiceError } from '../types';
 
 const VALID_KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
 const VALID_SCALES = ['major', 'minor'];
 const MAX_CHORDS = 50;
 
-function normalizeRoman(r) {
+function normalizeRoman(r: string): string {
   const base = getBaseRoman((r || '').trim());
   if (!base) return (r || '').trim();
   if (base === 'ii°' || base === 'iio') return 'iio';
   return base;
 }
 
+export interface ResolveMatch {
+  progression: string[];
+  roman_pattern: string[];
+  genre: string;
+  style: string | null;
+  mood: string | null;
+  default_bpm: number;
+}
+
+export interface ResolveSuccess {
+  input_chords: string[];
+  input_romans: string[];
+  key: string;
+  scale: string;
+  matches: ResolveMatch[];
+  message?: string;
+}
+
+export type ResolveResult = ResolveSuccess | (ServiceError & { error: string; message: string; invalid_chords?: string[] });
+
 /**
  * Find full progressions from templates that contain all of the user's chords,
  * filtered by optional genre, mood, and style preferences.
  */
-function resolveProgressions(params) {
+export function resolveProgressions(params: ResolveParams | null | undefined): ResolveResult {
   const { chords, key, scale, genre, mood, style } = params || {};
 
   if (!chords || !Array.isArray(chords) || chords.length === 0) {
@@ -39,8 +60,8 @@ function resolveProgressions(params) {
     return { error: 'invalid scale', message: `Scale must be one of: ${VALID_SCALES.join(', ')}` };
   }
 
-  const inputRomans = [];
-  const invalidChords = [];
+  const inputRomans: (string | null)[] = [];
+  const invalidChords: string[] = [];
   for (const c of chords) {
     const sym = String(c).trim();
     if (!sym) continue;
@@ -60,12 +81,12 @@ function resolveProgressions(params) {
     };
   }
 
-  const userRomanSet = new Set(inputRomans.map(normalizeRoman));
+  const userRomanSet = new Set(inputRomans.filter((r): r is string => r != null).map(normalizeRoman));
   let templates = getAllTemplates();
 
   if (genre) {
     const g = String(genre).toLowerCase().trim();
-    const alias = { 'avant-garde': 'avantGarde', avantgarde: 'avantGarde' };
+    const alias: Record<string, string> = { 'avant-garde': 'avantGarde', avantgarde: 'avantGarde' };
     const norm = alias[g] || g;
     templates = templates.filter((t) => (t.genre || '').toLowerCase() === norm);
   }
@@ -84,8 +105,8 @@ function resolveProgressions(params) {
     return [...userRomanSet].every((r) => patternRomans.has(r));
   });
 
-  const matches = templates.map((t) => {
-    const progression = t.romanPattern.map((r) => romanToChord(r, keyStr, scaleStr)).filter(Boolean);
+  const matches: ResolveMatch[] = templates.map((t) => {
+    const progression = t.romanPattern.map((r) => romanToChord(r, keyStr, scaleStr)).filter((x): x is string => Boolean(x));
     return {
       progression,
       roman_pattern: t.romanPattern,
@@ -98,12 +119,10 @@ function resolveProgressions(params) {
 
   return {
     input_chords: chords.filter((c) => String(c).trim()),
-    input_romans: [...new Set(inputRomans)],
+    input_romans: [...new Set(inputRomans.filter((r): r is string => r != null))],
     key: keyStr,
     scale: scaleStr,
     matches,
     message: matches.length === 0 ? 'No templates contain all your chords.' : undefined,
   };
 }
-
-module.exports = { resolveProgressions };

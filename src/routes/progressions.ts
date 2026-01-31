@@ -1,9 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const { getProgressions, getProgressionsSimple, getOptions } = require('../services/progressionService');
-const { resolveProgressions } = require('../services/resolutionService');
+import express, { Request, Response } from 'express';
+import { getProgressions, getProgressionsSimple, getOptions } from '../services/progressionService';
+import { resolveProgressions } from '../services/resolutionService';
 
-router.get('/', (req, res) => {
+const router = express.Router();
+
+router.get('/', (req: Request, res: Response) => {
   const { key, scale, mood, style, genre, bpm, duration_seconds, bars, simple } = req.query;
   if (!key || !scale) {
     return res.status(400).json({
@@ -12,34 +13,34 @@ router.get('/', (req, res) => {
     });
   }
   const params = {
-    key,
-    scale,
-    mood,
-    style,
-    genre,
+    key: key as string,
+    scale: scale as string,
+    mood: mood as string | undefined,
+    style: style as string | undefined,
+    genre: genre as string | undefined,
     bpm: bpm != null ? Number(bpm) : undefined,
     duration_seconds: duration_seconds != null ? Number(duration_seconds) : undefined,
     bars: bars != null ? Number(bars) : undefined,
   };
   const getResult = simple === 'true' || simple === '1' ? getProgressionsSimple : getProgressions;
   const result = getResult(params);
-  if (result.error) {
+  if ('error' in result) {
     return res.status(400).json(result);
   }
   res.json(result);
 });
 
-router.get('/options', (req, res) => {
+router.get('/options', (_req: Request, res: Response) => {
   res.json(getOptions());
 });
 
-router.post('/resolve', (req, res) => {
+router.post('/resolve', (req: Request, res: Response) => {
   const { chords, key, scale, genre, mood, style } = req.body || {};
   const result = resolveProgressions({ chords, key, scale, genre, mood, style });
-  if (result.error) {
+  if ('error' in result) {
     return res.status(400).json(result);
   }
   res.json(result);
 });
 
-module.exports = router;
+export default router;

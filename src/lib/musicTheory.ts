@@ -4,37 +4,22 @@
  * and extended harmony: 7ths (maj7, 7, m7, dim7, ø) and 9ths (maj9, 9, m9).
  */
 
+import type { ChordQuality, RomanInfo, ParsedChord, ChordToRomanResult } from '../types';
+
 // All 12 roots in sharp form for consistent indexing (C=0, C#=1, ... B=11)
-const ROOTS_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const ROOTS_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+export const ROOTS_SHARP: readonly string[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const ROOTS_FLAT: readonly string[] = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 // Normalize key to 0-11 and preferred spelling (we use sharp for internal scale)
-const KEY_ALIASES = {
+export const KEY_ALIASES: Record<string, number> = {
   C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6,
   G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
 };
 
-function getRootIndex(key) {
-  const k = (key || '').trim();
-  const idx = KEY_ALIASES[k];
-  if (idx === undefined) return null;
-  return idx;
-}
+type RomanDegreeEntry = { degree: number; quality: ChordQuality };
+type RomanBorrowedEntry = { flatDegree?: number; degree?: number; quality: ChordQuality };
 
-function getScaleRoots(key, scale) {
-  const rootIdx = getRootIndex(key);
-  if (rootIdx === null) return null;
-  const roots = ROOTS_SHARP;
-  // Major scale: 0 2 4 5 7 9 11 (W W H W W W H)
-  const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
-  // Natural minor: 0 2 3 5 7 8 10
-  const MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 10];
-  const intervals = (scale || 'major').toLowerCase() === 'minor' ? MINOR_INTERVALS : MAJOR_INTERVALS;
-  return intervals.map((semi) => roots[(rootIdx + semi) % 12]);
-}
-
-// Roman numeral (string) -> { degree 1-7, quality: 'major'|'minor'|'dim', borrowed?: true }
-const ROMAN_MAJOR = {
+const ROMAN_MAJOR: Record<string, RomanDegreeEntry> = {
   I: { degree: 1, quality: 'major' },
   ii: { degree: 2, quality: 'minor' },
   iii: { degree: 3, quality: 'minor' },
@@ -44,7 +29,8 @@ const ROMAN_MAJOR = {
   vii: { degree: 7, quality: 'dim' },
   viidim: { degree: 7, quality: 'dim' },
 };
-const ROMAN_MINOR = {
+
+const ROMAN_MINOR: Record<string, RomanDegreeEntry> = {
   i: { degree: 1, quality: 'minor' },
   II: { degree: 2, quality: 'dim' },
   'II°': { degree: 2, quality: 'dim' },
@@ -54,8 +40,8 @@ const ROMAN_MINOR = {
   VI: { degree: 6, quality: 'major' },
   VII: { degree: 7, quality: 'major' },
 };
-// Borrowed chords: flatDegree = flatten scale degree (bVII, bVI, bIII, bII); degree = same root, different quality (iv, iio)
-const BORROWED = {
+
+const BORROWED: Record<string, RomanBorrowedEntry> = {
   bVII: { flatDegree: 7, quality: 'major' },
   bVI: { flatDegree: 6, quality: 'major' },
   bIII: { flatDegree: 3, quality: 'major' },
@@ -66,19 +52,36 @@ const BORROWED = {
   'ii°': { degree: 2, quality: 'dim' },
 };
 
-// Optional extension after roman: maj7, 7, m7, maj9, 9, m9, dim7, ø (half-dim)
 const EXTENSION_PATTERN = /^(maj7|7|m7|maj9|9|m9|dim7|ø|halfDim|m7b5)$/i;
-const ROMAN_KEYS_BY_LENGTH = [
+
+const ROMAN_KEYS_BY_LENGTH: string[] = [
   ...Object.keys(BORROWED),
   ...Object.keys(ROMAN_MAJOR),
   ...Object.keys(ROMAN_MINOR),
 ].filter((k, i, a) => a.indexOf(k) === i).sort((a, b) => b.length - a.length);
 
-function parseRoman(roman) {
+const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+const MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 10];
+
+export function getRootIndex(key: string | null | undefined): number | null {
+  const k = (key || '').trim();
+  const idx = KEY_ALIASES[k];
+  if (idx === undefined) return null;
+  return idx;
+}
+
+export function getScaleRoots(key: string | null | undefined, scale: string | null | undefined): string[] | null {
+  const rootIdx = getRootIndex(key);
+  if (rootIdx === null) return null;
+  const intervals = (scale || 'major').toLowerCase() === 'minor' ? MINOR_INTERVALS : MAJOR_INTERVALS;
+  return intervals.map((semi) => ROOTS_SHARP[(rootIdx + semi) % 12]);
+}
+
+export function parseRoman(roman: string | null | undefined): RomanInfo | null {
   const r = (roman || '').trim();
   if (!r) return null;
   let base = r;
-  let extension = null;
+  let extension: string | null = null;
   for (const key of ROMAN_KEYS_BY_LENGTH) {
     if (r === key) {
       base = key;
@@ -94,14 +97,21 @@ function parseRoman(roman) {
       }
     }
   }
-  let info = BORROWED[base] ? { ...BORROWED[base], borrowed: true } : ROMAN_MAJOR[base] ? { ...ROMAN_MAJOR[base], borrowed: false } : ROMAN_MINOR[base] ? { ...ROMAN_MINOR[base], borrowed: false } : null;
-  if (!info) return null;
-  info.baseRoman = base;
+  const borrowedEntry = BORROWED[base];
+  const majorEntry = ROMAN_MAJOR[base];
+  const minorEntry = ROMAN_MINOR[base];
+  const raw = borrowedEntry ? { ...borrowedEntry, borrowed: true as const } : majorEntry ? { ...majorEntry, borrowed: false as const } : minorEntry ? { ...minorEntry, borrowed: false as const } : null;
+  if (!raw) return null;
+  const info: RomanInfo = {
+    ...raw,
+    quality: raw.quality,
+    baseRoman: base,
+  };
   if (extension) info.extension = extension;
   return info;
 }
 
-function extensionToSuffix(extension, quality) {
+function extensionToSuffix(extension: string | null | undefined, quality: ChordQuality): string {
   if (!extension) return '';
   switch (extension) {
     case 'maj7': return 'maj7';
@@ -117,27 +127,28 @@ function extensionToSuffix(extension, quality) {
   }
 }
 
-function romanToChord(roman, key, scale) {
+export function romanToChord(roman: string, key: string, scale?: string | null): string | null {
+  const keyIdx = getRootIndex(key);
   const scaleRoots = getScaleRoots(key, scale);
-  if (!scaleRoots) return null;
+  if (keyIdx === null || !scaleRoots) return null;
   const isMinor = (scale || 'major').toLowerCase() === 'minor';
   const info = parseRoman(roman);
   if (!info) return null;
 
   const hasExtension = !!info.extension;
-  const extSuffix = extensionToSuffix(info.extension, info.quality);
+  const extSuffix = extensionToSuffix(info.extension ?? null, info.quality);
 
   if (info.borrowed) {
-    if (info.flatDegree) {
+    if (info.flatDegree !== undefined) {
       const degreeIdx = info.flatDegree - 1;
-      const intervals = isMinor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
-      const scaleNoteIdx = (getRootIndex(key) + intervals[degreeIdx]) % 12;
+      const intervals = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
+      const scaleNoteIdx = (keyIdx + intervals[degreeIdx]) % 12;
       const rootNoteIdx = isMinor ? scaleNoteIdx : (scaleNoteIdx - 1 + 12) % 12;
       const rootName = ROOTS_SHARP[rootNoteIdx];
       if (hasExtension) return rootName + extSuffix;
       return rootName + (info.quality === 'major' ? '' : 'm');
     }
-    if (info.degree) {
+    if (info.degree !== undefined) {
       const rootName = scaleRoots[info.degree - 1];
       if (hasExtension) return rootName + extSuffix;
       if (info.quality === 'major') return rootName;
@@ -147,7 +158,7 @@ function romanToChord(roman, key, scale) {
     }
   }
 
-  const degree = info.degree;
+  const degree = info.degree!;
   const rootName = scaleRoots[degree - 1];
   if (hasExtension) return rootName + extSuffix;
   if (info.quality === 'major') return rootName;
@@ -156,7 +167,7 @@ function romanToChord(roman, key, scale) {
   return rootName;
 }
 
-function getChordQuality(roman) {
+export function getChordQuality(roman: string | null | undefined): ChordQuality {
   const info = parseRoman(roman);
   if (!info) return 'major';
   return info.quality;
@@ -166,7 +177,7 @@ function getChordQuality(roman) {
  * Return the base roman numeral (no extension) for comparison.
  * e.g. "IVmaj7" -> "IV", "vi7" -> "vi".
  */
-function getBaseRoman(roman) {
+export function getBaseRoman(roman: string | null | undefined): string | null {
   const info = parseRoman(roman);
   return info ? info.baseRoman : null;
 }
@@ -175,7 +186,7 @@ function getBaseRoman(roman) {
  * Parse a chord symbol into root (0-11), quality, and optional extension.
  * Handles C, Cm, Cmaj7, G7, Am7, Cmaj9, Bø, etc.
  */
-function parseChordSymbol(symbol) {
+export function parseChordSymbol(symbol: string | null | undefined): ParsedChord | null {
   const s = String(symbol || '').trim();
   if (!s) return null;
   let rootStr = '';
@@ -186,8 +197,8 @@ function parseChordSymbol(symbol) {
   const root = rootStr.charAt(0).toUpperCase() + (rootStr.slice(1) || '');
   const idx = getRootIndex(root);
   if (idx === null) return null;
-  let quality = 'major';
-  let extension = null;
+  let quality: ChordQuality = 'major';
+  let extension: string | undefined;
   const rest = s.slice(i).toLowerCase();
   if ((rest.startsWith('m') && !rest.startsWith('maj')) || rest.startsWith('-')) quality = 'minor';
   else if (/dim|°|o/.test(rest) && !rest.includes('7') && !rest.includes('9')) quality = 'dim';
@@ -199,7 +210,7 @@ function parseChordSymbol(symbol) {
   else if (rest.includes('dim7')) extension = 'dim7';
   else if (rest.includes('ø') || rest.includes('m7b5') || rest.includes('halfdim')) extension = 'halfDim';
   else if (rest.includes('7')) extension = quality === 'minor' ? 'm7' : '7';
-  return { rootIndex: idx, quality, rootName: root, extension: extension || undefined };
+  return { rootIndex: idx, quality, rootName: root, ...(extension ? { extension } : {}) };
 }
 
 /**
@@ -207,7 +218,7 @@ function parseChordSymbol(symbol) {
  * Returns { roman, quality, extension? } or null if unparseable or not in key.
  * Matching uses root+quality only (Cmaj7 and C both map to I).
  */
-function chordToRoman(chordSymbol, key, scale) {
+export function chordToRoman(chordSymbol: string, key: string, scale?: string | null): ChordToRomanResult | null {
   const parsed = parseChordSymbol(chordSymbol);
   if (!parsed) return null;
   const scaleRoots = getScaleRoots(key, scale);
@@ -216,10 +227,8 @@ function chordToRoman(chordSymbol, key, scale) {
   const keyIdx = getRootIndex(key);
   if (keyIdx === null) return null;
 
-  const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
-  const MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 10];
   const intervals = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
-  const result = { roman: null, quality: parsed.quality };
+  const result: ChordToRomanResult = { roman: null, quality: parsed.quality };
   if (parsed.extension) result.extension = parsed.extension;
 
   for (let degree = 1; degree <= 7; degree++) {
@@ -240,13 +249,13 @@ function chordToRoman(chordSymbol, key, scale) {
 
   for (const [roman, spec] of Object.entries(BORROWED)) {
     if (spec.quality !== parsed.quality) continue;
-    let expectedIdx;
-    if (spec.flatDegree) {
+    let expectedIdx: number;
+    if (spec.flatDegree !== undefined) {
       const degreeIdx = spec.flatDegree - 1;
       const ints = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
       const scaleNoteIdx = (keyIdx + ints[degreeIdx]) % 12;
       expectedIdx = isMinor ? scaleNoteIdx : (scaleNoteIdx - 1 + 12) % 12;
-    } else if (spec.degree) {
+    } else if (spec.degree !== undefined) {
       expectedIdx = (keyIdx + (isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS)[spec.degree - 1]) % 12;
     } else continue;
     if (parsed.rootIndex === expectedIdx) {
@@ -256,17 +265,3 @@ function chordToRoman(chordSymbol, key, scale) {
   }
   return null;
 }
-
-module.exports = {
-  getRootIndex,
-  getScaleRoots,
-  parseRoman,
-  romanToChord,
-  chordToRoman,
-  parseChordSymbol,
-  getChordQuality,
-  getBaseRoman,
-  ROOTS_SHARP,
-  ROOTS_FLAT,
-  KEY_ALIASES,
-};

@@ -1,10 +1,10 @@
-const express = require('express');
-const path = require('path');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const swaggerUi = require('swagger-ui-express');
-const progressionsRouter = require('./routes/progressions');
-const openApiSpec = require('./openapi/spec');
+import express, { Request, Response, NextFunction } from 'express';
+import path from 'path';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import progressionsRouter from './routes/progressions';
+import openApiSpec from './openapi/spec';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,13 +25,13 @@ app.use(helmet({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX ?? '', 10) || 100,
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(limiter);
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path === '/progressions/resolve' && req.method === 'POST') {
     return express.json({ limit: '100kb' })(req, res, next);
   }
@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 });
 
 // OpenAPI spec (for external tools) and interactive docs
-app.get('/openapi.json', (req, res) => {
+app.get('/openapi.json', (_req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
   res.json(openApiSpec);
 });
@@ -48,7 +48,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
 }));
 
 const publicDir = path.resolve(__dirname, '..', 'public');
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'), (err) => {
     if (err) res.status(500).send('Server error loading page');
   });
@@ -56,7 +56,7 @@ app.get('/', (req, res) => {
 app.use(express.static(publicDir));
 app.use('/progressions', progressionsRouter);
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'chord-progression-api' });
 });
 
@@ -66,7 +66,7 @@ app.use((req, res) => {
 });
 
 // Global error handler – avoids leaking stack traces in production
-app.use((err, req, res, next) => {
+app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) return next(err);
   console.error(err);
   res.status(500).json({ error: 'Internal server error', message: 'An unexpected error occurred' });
@@ -78,4 +78,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = app;
+export default app;
