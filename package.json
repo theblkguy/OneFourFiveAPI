@@ -1,0 +1,16 @@
+{
+  "name": "onefourfive-api",
+  "version": "1.0.0",
+  "description": "Chord progression API (OneFourFive) — progressions by key, scale, mood, genre, duration",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
