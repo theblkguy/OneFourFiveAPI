@@ -1,12 +1,13 @@
-# OneFourFive API (Chord Progression API)
+# OneFourFive API
 
-REST API for chord progressions by key, scale, mood, genre, and duration. Built for portfolio use and the "for spoken content" use case (e.g. background music length for TTS/audiobooks).
+REST API for chord progressions by key, scale, mood, genre, and duration. Returns progressions as chord symbols (triads and extended harmony: 7ths, 9ths), with optional bar count or duration. Use it for composition, education, backing tracks, or any application that needs chord progression data.
 
 ## Tech stack
 
 - **Runtime:** Node.js 18+
 - **Framework:** Express.js
-- **Data:** In-memory progression templates (common, jazz/avant-garde, anime, ambient/cinematic)
+- **Data:** In-memory progression templates (pop, rock, jazz, anime, ambient, cinematic)
+- **Docs:** OpenAPI 3 spec, Swagger UI at `/api-docs`
 
 ## Quick start
 
@@ -15,52 +16,35 @@ npm install
 npm start
 ```
 
-Server runs at `http://localhost:3000` (or `PORT` from env).
+The server listens on `http://localhost:3000` (or the value of `PORT`).
+
+## API documentation
+
+- **Interactive docs (Swagger UI):** `http://localhost:3000/api-docs` — try all endpoints from the browser.
+- **OpenAPI 3 spec (JSON):** `http://localhost:3000/openapi.json` — for code generation, Postman, or other API tools.
 
 ## Run with Docker
-
-**Using Docker Compose (easiest):**
 
 ```bash
 docker compose up
 ```
 
-Builds the image (first time), starts the API, and maps port 3000. Open [http://localhost:3000](http://localhost:3000) and [http://localhost:3000/api-docs](http://localhost:3000/api-docs). Stop with `Ctrl+C`, or run `docker compose down`.
-
-**Using Docker directly:**
+Or build and run the image directly:
 
 ```bash
 docker build -t onefourfive-api .
 docker run -p 3000:3000 onefourfive-api
 ```
 
-**What’s going on:** The **Dockerfile** uses a **multi-stage build**: stage 1 installs production dependencies only; stage 2 copies those deps plus your app into the final image (no devDependencies, smaller image). The app runs as the **non-root `node` user** (security best practice). **HEALTHCHECK** lets Docker and orchestrators (K8s, Render, etc.) know when the API is up. **Docker build** turns this into an image; **docker run** or **docker compose up** starts a container and maps port 3000 so you can hit the API at localhost. The **.dockerignore** keeps tests and dev config out of the image so it stays small and builds faster.
-
-## Deploy for free (Render)
-
-You can host this API for free on [Render](https://render.com):
-
-1. Push this repo to GitHub.
-2. Go to [dashboard.render.com](https://dashboard.render.com), sign in, and click **New** → **Web Service**.
-3. Connect your GitHub account and select this repository.
-4. Render will detect `render.yaml` (Blueprint). Confirm **Build command:** `npm install`, **Start command:** `npm start`, and **Plan:** Free, then create the service.
-
-Your API will be live at `https://<your-service-name>.onrender.com`. Use that base URL for the API and for the interactive docs: `https://<your-service-name>.onrender.com/api-docs`.
-
-**Free tier note:** The service **spins down after 15 minutes of no traffic**. The first request after a spin-down can take **30–60 seconds** while the server starts; later requests are fast until the next idle period. This is normal for Render’s free tier and is fine for demos and portfolio use.
+The Dockerfile uses a multi-stage build (production dependencies only in the final image), runs as a non-root user, and includes a HEALTHCHECK for orchestration. See `.dockerignore` for excluded files.
 
 ## Development
 
 ```bash
-npm run lint    # ESLint on src/
-npm test        # Jest unit + integration tests
-npm run test:watch   # Jest watch mode
+npm run lint          # ESLint on src/
+npm test              # Unit and integration tests (Jest, supertest)
+npm run test:watch    # Jest watch mode
 ```
-
-## API documentation
-
-- **Interactive docs (Swagger UI):** [http://localhost:3000/api-docs](http://localhost:3000/api-docs) — try all endpoints from the browser.
-- **OpenAPI 3 spec (JSON):** [http://localhost:3000/openapi.json](http://localhost:3000/openapi.json) — for codegen, Postman, or other API tools.
 
 ## Endpoints
 
@@ -82,14 +66,14 @@ Returns a chord progression in the given key and scale.
 | `genre`             | string | pop, rock, jazz, avantGarde, anime, ambient, cinematic. Default: pop. |
 | `mood`              | string | calm, upbeat, dark, neutral (filters template). |
 | `style`             | string | e.g. royalRoad, andalusian, ballad (filters template). |
-| `bpm`                | number | Tempo. If omitted, uses template default. |
-| `duration_seconds`  | number | **For spoken content.** Target length in seconds; API returns enough bars to fill ~this duration. |
-| `bars`              | number | Exact number of bars. Default 8 if neither duration_seconds nor bars set. |
-| `simple`           | flag   | If `true` or `1`, returns a minimal response (summary, key, scale, bpm, progression, bars) for easier reading. |
+| `bpm`               | number | Tempo. If omitted, uses template default. |
+| `duration_seconds`  | number | Target length in seconds; API returns enough bars to fill approximately this duration. |
+| `bars`              | number | Exact number of bars. Default 8 if neither duration_seconds nor bars is set. |
+| `simple`            | string | `true` or `1` for a minimal response (summary, key, scale, bpm, progression, bars). |
 
-**Full response** includes a one-line `summary` at the top, then key, scale, bpm, progression, bars, and detailed `chords` / `loop_description`. Add `?simple=true` for a **minimal response** (summary + key, scale, bpm, progression, bars only).
+**Response:** `summary`, `key`, `scale`, `bpm`, `progression` (array of chord symbols), `bars`, and optionally `chords` (per-chord detail with roman numerals), `loop_description`, `duration_seconds`. Some templates return extended chords (e.g. Fmaj7, G7, Am7) and may include a `voicing` hint (e.g. `quartal`).
 
-**Example full response (200)**
+**Example (200)**
 
 ```json
 {
@@ -114,44 +98,24 @@ Returns a chord progression in the given key and scale.
 }
 ```
 
-**Example minimal response** (`?simple=true`)
-
-```json
-{
-  "summary": "C major, 90 BPM: C → F → Am → G (57×, ~608s)",
-  "key": "C",
-  "scale": "major",
-  "bpm": 90,
-  "progression": ["C", "F", "Am", "G"],
-  "bars": 228,
-  "duration_seconds": 608
-}
-```
-
 ### POST /progressions/resolve
 
-Returns full progressions from templates that contain all of your input chords, filtered by preferences.
+Returns full progressions from templates that contain all of your input chords, optionally filtered by genre, mood, or style.
 
 **Request body (JSON)**
 
-| Field   | Type   | Required | Description |
-|---------|--------|----------|-------------|
-| `chords`| array  | yes      | Chord symbols (e.g. `["C", "G", "Am"]`) |
-| `key`   | string | yes      | Root note: C, C#, Db, D, … B |
-| `scale` | string | yes      | `major` or `minor` |
-| `genre` | string | no       | Filter by genre (pop, rock, jazz, etc.) |
-| `mood`  | string | no       | Filter by mood (calm, upbeat, dark, neutral) |
-| `style` | string | no       | Filter by style (e.g. creep, epic, ballad) |
+| Field    | Type   | Required | Description |
+|----------|--------|----------|-------------|
+| `chords` | array  | yes      | Chord symbols (e.g. `["C", "G", "Am"]`). Triads or extended (e.g. Cmaj7). |
+| `key`    | string | yes      | Root note: C, C#, Db, D, … B |
+| `scale`  | string | yes      | `major` or `minor` |
+| `genre`  | string | no       | Filter by genre (pop, rock, jazz, etc.) |
+| `mood`   | string | no       | Filter by mood (calm, upbeat, dark, neutral) |
+| `style`  | string | no       | Filter by style (e.g. creep, epic, ballad) |
 
-**Example request**
+**Response:** `input_chords`, `input_romans`, `key`, `scale`, `matches` (array of progressions with `progression`, `roman_pattern`, `genre`, `style`, `mood`, `default_bpm`). If no templates match, `matches` is empty and `message` explains.
 
-```bash
-curl -X POST http://localhost:3000/progressions/resolve \
-  -H "Content-Type: application/json" \
-  -d '{"chords": ["C", "G", "Am"], "key": "C", "scale": "major", "genre": "pop"}'
-```
-
-**Example response (200)**
+**Example (200)**
 
 ```json
 {
@@ -167,20 +131,10 @@ curl -X POST http://localhost:3000/progressions/resolve \
       "style": "upbeat",
       "mood": "upbeat",
       "default_bpm": 120
-    },
-    {
-      "progression": ["C", "F", "Am", "G"],
-      "roman_pattern": ["I", "IV", "vi", "V"],
-      "genre": "pop",
-      "style": "calm",
-      "mood": "calm",
-      "default_bpm": 90
     }
   ]
 }
 ```
-
-If no templates match, `matches` is empty and `message` indicates "No templates contain all your chords."
 
 ### GET /progressions/options
 
@@ -188,18 +142,20 @@ Returns allowed values for keys, scales, moods, genres, and styles.
 
 ### GET /health
 
-Health check. Returns `{ "status": "ok", "service": "onefourfive-api" }`.
+Health check. Response: `{ "status": "ok", "service": "chord-progression-api" }`.
 
-## Example requests (curl)
+## Example requests
 
-**Basic progression (C major, 8 bars)** — add `&simple=true` for a shorter response.
+Replace `http://localhost:3000` with your server URL if different.
+
+**Basic progression (C major, default bars)**
 
 ```bash
 curl "http://localhost:3000/progressions?key=C&scale=major"
 curl "http://localhost:3000/progressions?key=C&scale=major&simple=true"
 ```
 
-**Calm progression for ~10 minutes (for spoken content)**
+**Progression with target duration**
 
 ```bash
 curl "http://localhost:3000/progressions?key=C&scale=major&mood=calm&duration_seconds=600"
@@ -211,7 +167,13 @@ curl "http://localhost:3000/progressions?key=C&scale=major&mood=calm&duration_se
 curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=royalRoad"
 ```
 
-**Andalusian cadence (A minor, i–bVII–bVI–V)**
+**Anime with 7ths and quartal voicing hint**
+
+```bash
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=ghibli"
+```
+
+**Andalusian cadence (A minor)**
 
 ```bash
 curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andalusian"
@@ -223,15 +185,7 @@ curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andal
 curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basic"
 ```
 
-**Borrowed chord progressions (Creep, Epic, Dark resolve)**
-
-```bash
-curl "http://localhost:3000/progressions?key=C&scale=major&genre=pop&style=creep"
-curl "http://localhost:3000/progressions?key=C&scale=major&genre=rock&style=epic"
-curl "http://localhost:3000/progressions?key=C&scale=major&genre=rock&style=darkResolve"
-```
-
-**Resolve: find progressions containing your chords**
+**Resolve: find progressions containing given chords**
 
 ```bash
 curl -X POST http://localhost:3000/progressions/resolve \
@@ -245,12 +199,11 @@ curl -X POST http://localhost:3000/progressions/resolve \
 curl "http://localhost:3000/progressions/options"
 ```
 
-## Genre coverage
+## Genre and style coverage
 
-- **Common (pop, rock):** I–V–vi–IV, I–IV–vi–V, vi–IV–I–V, 50s, ballad, Andalusian (minor), Creep (I–III–IV–iv), Dark resolve (I–iv–IV–I), Neapolitan (I–bII–V–I), etc.
-- **Rock (borrowed chords):** I–bVII–IV–I (mixolydian), I–bVI–bVII–I (epic).
-- **Jazz / avant-garde:** ii–V–I, I–vi–ii–V, iii–vi–ii–V, I–bVII–IV–I, etc.
-- **Anime:** Royal Road (IV–V–iii–vi), short, resolve, resolveDirect, reverseResolve, emotional, nostalgic, whimsical, ascending, rotated, epic, ballad, op/ed. **Extended harmony:** royalRoad7, resolve7, nostalgic7, whimsical9 (7ths/9ths: IVmaj7, V7, iii7, vi7, Imaj7, etc.). **Quartal voicing:** style `ghibli` returns the same 7th progression with `voicing: "quartal"` for Ghibli-style voicing hints.
+- **Pop / rock:** I–V–vi–IV, I–IV–vi–V, vi–IV–I–V, 50s, ballad, Andalusian (minor), Creep (I–III–IV–iv), Dark resolve (I–iv–IV–I), Neapolitan (I–bII–V–I). Borrowed: I–bVII–IV–I (mixolydian), I–bVI–bVII–I (epic).
+- **Jazz / avant-garde:** ii–V–I, I–vi–ii–V, iii–vi–ii–V, I–bVII–IV–I.
+- **Anime:** Royal Road (IV–V–iii–vi), short, resolve, resolveDirect, reverseResolve, emotional, nostalgic, whimsical, ascending, rotated, epic, ballad, op/ed. Extended harmony: royalRoad7, resolve7, nostalgic7, whimsical9 (IVmaj7, V7, iii7, vi7, Imaj7, etc.). Style `ghibli` returns 7th chords with `voicing: "quartal"`.
 - **Ambient / cinematic:** I–IV–I, I–vi–I, minimal, cinematic minor, bVI–bVII–I (epic).
 
 ## License
