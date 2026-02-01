@@ -1,6 +1,17 @@
 import request from 'supertest';
 import app from '../index';
 
+/** Get a valid JWT by registering a unique user. */
+async function getToken(): Promise<string> {
+  const email = `api-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const res = await request(app)
+    .post('/auth/register')
+    .set('Content-Type', 'application/json')
+    .send({ email, password: 'password123' });
+  expect(res.status).toBe(201);
+  return res.body.token;
+}
+
 describe('API integration', () => {
   describe('GET /health', () => {
     it('returns 200 and status ok', async () => {
@@ -11,14 +22,27 @@ describe('API integration', () => {
   });
 
   describe('GET /progressions', () => {
+    it('returns 401 when no JWT', async () => {
+      const res = await request(app).get('/progressions').query({ key: 'C', scale: 'major' });
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthorized');
+    });
+
     it('returns 400 when key or scale missing', async () => {
-      const res = await request(app).get('/progressions');
+      const token = await getToken();
+      const res = await request(app)
+        .get('/progressions')
+        .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();
     });
 
-    it('returns 200 and progression for valid key and scale', async () => {
-      const res = await request(app).get('/progressions').query({ key: 'C', scale: 'major' });
+    it('returns 200 and progression for valid key and scale with JWT', async () => {
+      const token = await getToken();
+      const res = await request(app)
+        .get('/progressions')
+        .set('Authorization', `Bearer ${token}`)
+        .query({ key: 'C', scale: 'major' });
       expect(res.status).toBe(200);
       expect(res.body.key).toBe('C');
       expect(res.body.scale).toBe('major');
@@ -27,7 +51,11 @@ describe('API integration', () => {
     });
 
     it('returns minimal response with simple=true', async () => {
-      const res = await request(app).get('/progressions').query({ key: 'C', scale: 'major', simple: 'true' });
+      const token = await getToken();
+      const res = await request(app)
+        .get('/progressions')
+        .set('Authorization', `Bearer ${token}`)
+        .query({ key: 'C', scale: 'major', simple: 'true' });
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('summary');
       expect(res.body).toHaveProperty('progression');
@@ -36,10 +64,21 @@ describe('API integration', () => {
   });
 
   describe('POST /progressions/resolve', () => {
+    it('returns 401 when no JWT', async () => {
+      const res = await request(app)
+        .post('/progressions/resolve')
+        .set('Content-Type', 'application/json')
+        .send({ chords: ['C', 'G', 'Am'], key: 'C', scale: 'major' });
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthorized');
+    });
+
     it('returns 400 when chords array exceeds limit', async () => {
+      const token = await getToken();
       const manyChords = Array(51).fill('C');
       const res = await request(app)
         .post('/progressions/resolve')
+        .set('Authorization', `Bearer ${token}`)
         .set('Content-Type', 'application/json')
         .send({ chords: manyChords, key: 'C', scale: 'major' });
       expect(res.status).toBe(400);
@@ -47,14 +86,20 @@ describe('API integration', () => {
     });
 
     it('returns 400 when body missing chords', async () => {
-      const res = await request(app).post('/progressions/resolve').send({ key: 'C', scale: 'major' });
+      const token = await getToken();
+      const res = await request(app)
+        .post('/progressions/resolve')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ key: 'C', scale: 'major' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();
     });
 
-    it('returns 200 and matches for valid chords', async () => {
+    it('returns 200 and matches for valid chords with JWT', async () => {
+      const token = await getToken();
       const res = await request(app)
         .post('/progressions/resolve')
+        .set('Authorization', `Bearer ${token}`)
         .set('Content-Type', 'application/json')
         .send({ chords: ['C', 'G', 'Am'], key: 'C', scale: 'major' });
       expect(res.status).toBe(200);
@@ -64,8 +109,17 @@ describe('API integration', () => {
   });
 
   describe('GET /progressions/options', () => {
-    it('returns 200 and options', async () => {
+    it('returns 401 when no JWT', async () => {
       const res = await request(app).get('/progressions/options');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthorized');
+    });
+
+    it('returns 200 and options with JWT', async () => {
+      const token = await getToken();
+      const res = await request(app)
+        .get('/progressions/options')
+        .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body.keys).toBeInstanceOf(Array);
       expect(res.body.scales).toEqual(['major', 'minor']);

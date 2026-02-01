@@ -1,6 +1,7 @@
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
+  cacheDirectory: '<rootDir>/.jest-cache',
   testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/openapi/**', '!src/**/*.test.ts', '!src/**/__tests__/**'],
   coverageDirectory: 'coverage',

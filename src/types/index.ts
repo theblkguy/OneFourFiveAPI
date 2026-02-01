@@ -64,3 +64,37 @@ export interface ServiceError {
   message: string;
   invalid_chords?: string[];
 }
+
+/** Stored user (no password in responses) */
+export interface User {
+  id: string;
+  email: string;
+  createdAt: string; // ISO
+}
+
+/** Body for POST /auth/register */
+export interface RegisterBody {
+  email: string;
+  password: string;
+}
+
+/** Body for POST /auth/login */
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+/** Success response for register/login */
+export interface AuthSuccess {
+  token: string;
+  user: User;
+  expiresIn: string; // e.g. "7d"
+}
+
+/** JWT payload (sub = userId) */
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}

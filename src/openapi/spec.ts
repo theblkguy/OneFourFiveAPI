@@ -13,9 +13,78 @@ const spec = {
     { url: '/', description: 'Current host' },
   ],
   paths: {
+    '/auth/register': {
+      post: {
+        summary: 'Register a new user',
+        description: 'Create an account. Returns a JWT and user object. Use the token in Authorization: Bearer <token> for progression endpoints.',
+        operationId: 'register',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email', example: 'user@example.com' },
+                  password: { type: 'string', minLength: 8, example: 'password123' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Registered',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthSuccess' },
+              },
+            },
+          },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '409': { description: 'Email already taken', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+    '/auth/login': {
+      post: {
+        summary: 'Log in',
+        description: 'Returns a JWT and user object. Use the token in Authorization: Bearer <token> for progression endpoints.',
+        operationId: 'login',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Logged in',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthSuccess' },
+              },
+            },
+          },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
     '/progressions': {
       get: {
         summary: 'Get a chord progression',
+        security: [{ bearerAuth: [] }],
         description: 'Returns a chord progression in the given key and scale. Optionally filter by genre, mood, style; set BPM, duration in seconds, or exact bar count. Templates may use 7ths/9ths (e.g. IVmaj7, V7, vi7) and may include an optional voicing hint (e.g. quartal for Ghibli-style).',
         operationId: 'getProgressions',
         parameters: [
@@ -136,12 +205,14 @@ const spec = {
               },
             },
           },
+          '401': { description: 'JWT required', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },
     '/progressions/options': {
       get: {
         summary: 'Get allowed options',
+        security: [{ bearerAuth: [] }],
         description: 'Returns allowed values for keys, scales, moods, genres, and styles.',
         operationId: 'getOptions',
         responses: {
@@ -190,7 +261,30 @@ const spec = {
     },
   },
   components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT from POST /auth/login or POST /auth/register',
+      },
+    },
     schemas: {
+      AuthSuccess: {
+        type: 'object',
+        properties: {
+          token: { type: 'string', description: 'JWT for Authorization header' },
+          user: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              email: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' },
+            },
+          },
+          expiresIn: { type: 'string', example: '7d' },
+        },
+      },
       ProgressionResponse: {
         type: 'object',
         properties: {

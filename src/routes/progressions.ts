@@ -1,10 +1,14 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { getProgressions, getProgressionsSimple, getOptions } from '../services/progressionService';
 import { resolveProgressions } from '../services/resolutionService';
+import { AuthenticatedRequest } from '../middleware';
 
 const router = express.Router();
 
-router.get('/', (req: Request, res: Response) => {
+// Note: requireAuth and progressionRateLimiter are applied in index.ts
+// This ensures per-user rate limiting since all requests are authenticated
+
+router.get('/', (req: AuthenticatedRequest, res: Response) => {
   const { key, scale, mood, style, genre, bpm, duration_seconds, bars, simple } = req.query;
   if (!key || !scale) {
     return res.status(400).json({
@@ -30,11 +34,11 @@ router.get('/', (req: Request, res: Response) => {
   res.json(result);
 });
 
-router.get('/options', (_req: Request, res: Response) => {
+router.get('/options', (_req: AuthenticatedRequest, res: Response) => {
   res.json(getOptions());
 });
 
-router.post('/resolve', (req: Request, res: Response) => {
+router.post('/resolve', (req: AuthenticatedRequest, res: Response) => {
   const { chords, key, scale, genre, mood, style } = req.body || {};
   const result = resolveProgressions({ chords, key, scale, genre, mood, style });
   if ('error' in result) {

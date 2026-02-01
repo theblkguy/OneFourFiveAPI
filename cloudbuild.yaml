@@ -1,0 +1,59 @@
+# Cloud Build configuration for OneFourFive API
+# Triggered on push to main (configure trigger in Cloud Console or via gcloud)
+#
+# Setup:
+#   1. Enable Cloud Build API: gcloud services enable cloudbuild.googleapis.com
+#   2. Create Artifact Registry repo:
+#      gcloud artifacts repositories create onefourfive --repository-format=docker --location=us-central1
+#   3. Grant Cloud Build permission to deploy to Cloud Run:
+#      gcloud projects add-iam-policy-binding $PROJECT_ID \
+#        --member="serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com" \
+#        --role="roles/run.admin"
+#   4. Create trigger: gcloud builds triggers create github --repo-name=... --branch-pattern=^main$ --build-config=cloudbuild.yaml
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:latest'
+      - '.'
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'onefourfive-api'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--memory=256Mi'
+      - '--min-instances=0'
+      - '--max-instances=10'
+      - '--concurrency=80'
+      - '--timeout=30s'
+      - '--set-env-vars=NODE_ENV=production'
+
+# Store images in Artifact Registry
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/onefourfive/api:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
