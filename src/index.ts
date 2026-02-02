@@ -13,8 +13,12 @@ import { initializeDatabase } from './db';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS: allow banjoko.codes (and www) to call the API when the page is hosted there
-const ALLOWED_ORIGINS = ['https://banjoko.codes', 'https://www.banjoko.codes'];
+// CORS: allowed origins when frontend is hosted separately
+const ALLOWED_ORIGINS = [
+  'https://banjoko.codes',
+  'https://www.banjoko.codes',
+  'https://onefourfiveapi.onrender.com',
+];
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   if (typeof origin === 'string' && ALLOWED_ORIGINS.includes(origin)) {

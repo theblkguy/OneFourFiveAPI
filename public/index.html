@@ -828,6 +828,12 @@
       return `${API_BASE}${endpoint}${q}`;
     }
 
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
     function setStatus(msg, loading = false) {
       statusEl.textContent = msg;
       statusEl.className = 'status' + (loading ? ' loading' : '');
@@ -854,7 +860,7 @@
         return;
       }
       const url = buildUrl('/progressions', params);
-      urlDisplay.innerHTML = `GET <span class="endpoint">${url}</span>`;
+      urlDisplay.innerHTML = `GET <span class="endpoint">${escapeHtml(url)}</span>`;
       output.className = 'output';
       output.textContent = '';
       setStatus('Connecting...', true);
@@ -907,7 +913,7 @@
           makeChipGroup('style-group', 'style', styleOptions, true);
         }
         if (showInOutput) {
-          urlDisplay.innerHTML = `GET <span class="endpoint">${url}</span>`;
+          urlDisplay.innerHTML = `GET <span class="endpoint">${escapeHtml(url)}</span>`;
           output.textContent = JSON.stringify(data, null, 2);
           output.className = 'output';
           setStatus(`Loaded ${data.moods?.length || 0} moods, ${data.styles?.length || 0} styles for genre`);
@@ -930,7 +936,7 @@
       const genre = document.getElementById('genre').value;
       const params = genre ? new URLSearchParams({ genre }) : '';
       const url = `${API_BASE}/progressions/options${params ? '?' + params : ''}`;
-      urlDisplay.innerHTML = `GET <span class="endpoint">${url}</span>`;
+      urlDisplay.innerHTML = `GET <span class="endpoint">${escapeHtml(url)}</span>`;
       output.className = 'output';
       output.textContent = 'Loading...';
       setStatus('Fetching options...', true);
