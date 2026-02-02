@@ -20,8 +20,52 @@ The server listens on `http://localhost:3000` (or the value of `PORT`).
 
 ## API documentation
 
-- **Interactive docs (Swagger UI):** `http://localhost:3000/api-docs` — try all endpoints from the browser.
+- **Interactive docs (Swagger UI):** `http://localhost:3000/api-docs` — try all endpoints from the browser (including auth).
 - **OpenAPI 3 spec (JSON):** `http://localhost:3000/openapi.json` — for code generation, Postman, or other API tools.
+
+## Authentication
+
+Progression endpoints (`GET /progressions`, `POST /progressions/resolve`, `GET /progressions/options`) require a valid JWT. Send the token in the `Authorization` header: `Authorization: Bearer <token>`.
+
+The API supports two auth modes:
+
+### Neon Auth (recommended)
+
+When `NEON_AUTH_URL` is set, the API validates JWTs from [Neon Auth](https://neon.com/docs/auth/overview). Enable Auth in your [Neon project](https://console.neon.tech), copy the Auth Base URL, and add it to `.env`:
+
+```
+NEON_AUTH_URL=https://ep-xxx.neonauth.us-east-2.aws.neon.build/neondb/auth
+```
+
+The frontend will automatically use Neon Auth for sign-in and sign-up (OAuth, email/password, etc.). Users are prompted to log in—no auto-guest sessions.
+
+### Custom auth (fallback)
+
+When `NEON_AUTH_URL` is not set, the API uses its built-in register/login with `JWT_SECRET`.
+
+**Register (create account)**
+
+- **POST /auth/register** — Request body (JSON): `{ "email": "you@example.com", "password": "your-password" }`. Returns `{ "token", "user", "expiresIn" }`. Use the `token` for authenticated requests.
+
+**Login**
+
+- **POST /auth/login** — Request body (JSON): `{ "email", "password" }`. Returns `{ "token", "user", "expiresIn" }`.
+
+**Example: get a token, then call progressions**
+
+```bash
+# Register (or use POST /auth/login with existing credentials)
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"password123"}'
+# Response includes "token": "eyJ..."
+
+# Use the token for progression endpoints
+curl "http://localhost:3000/progressions?key=C&scale=major" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+Interactive docs at **/api-docs** support the Bearer scheme: use “Authorize”, paste your token, then try the progression endpoints.
 
 ## Run with Docker
 
@@ -37,6 +81,15 @@ docker run -p 3000:3000 onefourfive-api
 ```
 
 The Dockerfile uses a multi-stage build (production dependencies only in the final image), runs as a non-root user, and includes a HEALTHCHECK for orchestration. See `.dockerignore` for excluded files.
+
+## Deploy on Render
+
+Connect this repo at [dashboard.render.com](https://dashboard.render.com); Render will use `render.yaml`. For auth:
+
+- **Neon Auth:** Set `NEON_AUTH_URL` to your Neon Auth Base URL (from [Neon Console](https://console.neon.tech) → Project → Auth → Configuration). No `JWT_SECRET` needed.
+- **Custom auth:** Set `JWT_SECRET` to a long random value. Without it, auth will fail in production.
+
+Optionally set `NODE_ENV=production` (the blueprint sets it by default).
 
 ## Development
 
@@ -136,6 +189,36 @@ Returns full progressions from templates that contain all of your input chords, 
 }
 ```
 
+### POST /progressions/complete
+
+Returns full progressions that **start with** your chord sequence (prefix match), plus a **completion** array—the rest of the progression—so you can finish your idea. Order matters: your chords must match the beginning of a template.
+
+**Request body (JSON)** — same as resolve: `chords` (array, in order), `key`, `scale`, optional `genre`, `mood`, `style`.
+
+**Response:** `input_chords`, `input_romans`, `key`, `scale`, `matches`. Each match has `progression`, `roman_pattern`, `genre`, `style`, `mood`, `default_bpm`, and **`completion`** (array of chord symbols to append to your partial).
+
+**Example (200)** — partial `["C", "G", "Am"]` in C major:
+
+```json
+{
+  "input_chords": ["C", "G", "Am"],
+  "input_romans": ["I", "V", "vi"],
+  "key": "C",
+  "scale": "major",
+  "matches": [
+    {
+      "progression": ["C", "G", "Am", "F"],
+      "roman_pattern": ["I", "V", "vi", "IV"],
+      "genre": "pop",
+      "style": "upbeat",
+      "mood": "upbeat",
+      "default_bpm": 120,
+      "completion": ["F"]
+    }
+  ]
+}
+```
+
 ### GET /progressions/options
 
 Returns allowed values for keys, scales, moods, genres, and styles.
@@ -146,43 +229,52 @@ Health check. Response: `{ "status": "ok", "service": "chord-progression-api" }`
 
 ## Example requests
 
-Replace `http://localhost:3000` with your server URL if different.
+Replace `http://localhost:3000` with your server URL if different. All progression, resolve, and options requests **require** `Authorization: Bearer <token>` (see [Authentication](#authentication)).
 
-**Basic progression (C major, default bars)**
+**With auth (register → token → progression)**
 
 ```bash
-curl "http://localhost:3000/progressions?key=C&scale=major"
-curl "http://localhost:3000/progressions?key=C&scale=major&simple=true"
+TOKEN=$(curl -s -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"password123"}' | jq -r '.token')
+curl "http://localhost:3000/progressions?key=C&scale=major" -H "Authorization: Bearer $TOKEN"
+```
+
+**Basic progression (C major, default bars)** — requires `Authorization: Bearer <token>`
+
+```bash
+curl "http://localhost:3000/progressions?key=C&scale=major" -H "Authorization: Bearer YOUR_TOKEN"
+curl "http://localhost:3000/progressions?key=C&scale=major&simple=true" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Progression with target duration**
 
 ```bash
-curl "http://localhost:3000/progressions?key=C&scale=major&mood=calm&duration_seconds=600"
+curl "http://localhost:3000/progressions?key=C&scale=major&mood=calm&duration_seconds=600" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Anime Royal Road (IV–V–iii–vi)**
 
 ```bash
-curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=royalRoad"
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=royalRoad" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Anime with 7ths and quartal voicing hint**
 
 ```bash
-curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=ghibli"
+curl "http://localhost:3000/progressions?key=C&scale=major&genre=anime&style=ghibli" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Andalusian cadence (A minor)**
 
 ```bash
-curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andalusian"
+curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andalusian" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Jazz ii–V–I**
 
 ```bash
-curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basic"
+curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basic" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Resolve: find progressions containing given chords**
@@ -190,13 +282,23 @@ curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basi
 ```bash
 curl -X POST http://localhost:3000/progressions/resolve \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"chords": ["C", "G", "Am"], "key": "C", "scale": "major"}'
+```
+
+**Complete: finish a partial progression (prefix match)**
+
+```bash
+curl -X POST http://localhost:3000/progressions/complete \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"chords": ["C", "G", "Am"], "key": "C", "scale": "major"}'
 ```
 
 **List options**
 
 ```bash
-curl "http://localhost:3000/progressions/options"
+curl "http://localhost:3000/progressions/options" -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ## Genre and style coverage

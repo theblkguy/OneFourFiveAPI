@@ -1,6 +1,7 @@
 # Render Blueprint — free tier web service
 # Deploy: push to GitHub, then connect this repo at https://dashboard.render.com
 # Free tier: service spins down after 15 min inactivity; first request may take ~30–60s to wake up.
+# Set JWT_SECRET (and optionally NODE_ENV) in the Render Dashboard → Service → Environment.
 
 services:
   - type: web
@@ -8,7 +9,13 @@ services:
     runtime: node
     plan: free
 
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: npm start
 
     healthCheckPath: /health
+
+    envVars:
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production

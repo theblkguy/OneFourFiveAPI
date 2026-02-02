@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import helmet from 'helmet';
@@ -7,10 +8,35 @@ import progressionsRouter from './routes/progressions';
 import authRouter from './routes/auth';
 import openApiSpec from './openapi/spec';
 import { requireAuth, progressionRateLimiter } from './middleware';
+import { initializeDatabase } from './db';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS: allow banjoko.codes (and www) to call the API when the page is hosted there
+const ALLOWED_ORIGINS = ['https://banjoko.codes', 'https://www.banjoko.codes'];
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
+const connectSrc = ["'self'", 'https://esm.sh'];
+const neonAuthUrl = process.env.NEON_AUTH_URL;
+if (neonAuthUrl) {
+  try {
+    connectSrc.push(new URL(neonAuthUrl).origin);
+  } catch {
+    // ignore invalid URL
+  }
+}
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -19,7 +45,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
       fontSrc: ["'self'"],
-      connectSrc: ["'self'"],
+      connectSrc,
       frameSrc: [],
     },
   },
@@ -34,7 +60,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path === '/progressions/resolve' && req.method === 'POST') {
+  if ((req.path === '/progressions/resolve' || req.path === '/progressions/complete') && req.method === 'POST') {
     return express.json({ limit: '100kb' })(req, res, next);
   }
   if (req.path.startsWith('/auth')) {
@@ -70,6 +96,13 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'chord-progression-api' });
 });
 
+// Config for frontend (e.g. Neon Auth URL when using Neon Auth)
+app.get('/api/config', (_req: Request, res: Response) => {
+  res.json({
+    neonAuthUrl: process.env.NEON_AUTH_URL || null,
+  });
+});
+
 // 404 for unknown routes
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', message: `No route for ${req.method} ${req.path}` });
@@ -83,9 +116,17 @@ app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Chord Progression API listening on http://localhost:${PORT}`);
-  });
+  // Initialize database before starting server
+  initializeDatabase()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Chord Progression API listening on http://localhost:${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    });
 }
 
 export default app;

@@ -1,4 +1,4 @@
-import { getTemplate, getAllTemplates } from '../data/templates';
+import { getTemplate, getAllTemplates, getTemplatesByGenre } from '../data/templates';
 import { getRootIndex, romanToChord } from '../lib/musicTheory';
 import type { ProgressionParams, ServiceError } from '../types';
 
@@ -155,15 +155,18 @@ export function getProgressionsSimple(params: ProgressionParams | null | undefin
   };
 }
 
-export function getOptions(): {
+export function getOptions(genre?: string | null): {
   keys: string[];
   scales: string[];
   moods: string[];
   genres: string[];
   styles: string[];
 } {
-  const templates = getAllTemplates();
-  const genres = [...new Set(templates.map((t) => t.genre))];
+  const templates = genre
+    ? getTemplatesByGenre(genre)
+    : getAllTemplates();
+  const allTemplates = getAllTemplates();
+  const genres = [...new Set(allTemplates.map((t) => t.genre))];
   const moods = [...new Set(templates.flatMap((t) => (t.mood ? [t.mood] : [])))];
   const styles = [...new Set(templates.flatMap((t) => (t.style ? [t.style] : [])))];
   return {

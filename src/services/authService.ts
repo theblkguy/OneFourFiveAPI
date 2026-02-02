@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { createUser, findByEmail } from '../data/userStore';
+import { createUser, findByEmail } from '../data/userStoreDb';
 import type { AuthSuccess, User, JwtPayload, RegisterBody, LoginBody } from '../types';
 
 const SALT_ROUNDS = 10;
@@ -39,7 +39,7 @@ export interface RegisterResultError {
 
 export type RegisterResult = RegisterResultSuccess | RegisterResultError;
 
-export function register(body: RegisterBody | null | undefined): RegisterResult {
+export async function register(body: RegisterBody | null | undefined): Promise<RegisterResult> {
   const email = typeof body?.email === 'string' ? body.email.trim() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
 
@@ -54,12 +54,12 @@ export function register(body: RegisterBody | null | undefined): RegisterResult 
   }
 
   try {
-    const existing = findByEmail(email);
+    const existing = await findByEmail(email);
     if (existing) {
       return { success: false, error: 'email_taken', message: 'An account with this email already exists' };
     }
     const passwordHash = bcrypt.hashSync(password, SALT_ROUNDS);
-    const user = createUser(email, passwordHash);
+    const user = await createUser(email, passwordHash);
     const secret = getSecret();
     const expiresIn = getExpiresIn();
     const token = jwt.sign(
@@ -95,7 +95,7 @@ export interface LoginResultError {
 
 export type LoginResult = LoginResultSuccess | LoginResultError;
 
-export function login(body: LoginBody | null | undefined): LoginResult {
+export async function login(body: LoginBody | null | undefined): Promise<LoginResult> {
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
 
@@ -103,7 +103,7 @@ export function login(body: LoginBody | null | undefined): LoginResult {
     return { success: false, error: 'validation_error', message: 'Email and password are required' };
   }
 
-  const stored = findByEmail(email);
+  const stored = await findByEmail(email);
   if (!stored) {
     return { success: false, error: 'invalid_credentials', message: 'Invalid email or password' };
   }

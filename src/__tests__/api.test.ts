@@ -108,6 +108,32 @@ describe('API integration', () => {
     });
   });
 
+  describe('POST /progressions/complete', () => {
+    it('returns 401 when no JWT', async () => {
+      const res = await request(app)
+        .post('/progressions/complete')
+        .set('Content-Type', 'application/json')
+        .send({ chords: ['C', 'G', 'Am'], key: 'C', scale: 'major' });
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthorized');
+    });
+
+    it('returns 200 and matches with completion for valid prefix with JWT', async () => {
+      const token = await getToken();
+      const res = await request(app)
+        .post('/progressions/complete')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json')
+        .send({ chords: ['C', 'G', 'Am'], key: 'C', scale: 'major' });
+      expect(res.status).toBe(200);
+      expect(res.body.input_chords).toEqual(['C', 'G', 'Am']);
+      expect(res.body.matches).toBeInstanceOf(Array);
+      const withCompletion = res.body.matches.find((m: { completion?: string[] }) => m.completion?.length);
+      expect(withCompletion).toBeDefined();
+      expect(withCompletion.completion).toContain('F');
+    });
+  });
+
   describe('GET /progressions/options', () => {
     it('returns 401 when no JWT', async () => {
       const res = await request(app).get('/progressions/options');

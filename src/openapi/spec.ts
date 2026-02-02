@@ -209,12 +209,79 @@ const spec = {
         },
       },
     },
+    '/progressions/complete': {
+      post: {
+        summary: 'Finish a progression',
+        security: [{ bearerAuth: [] }],
+        description: 'Returns full progressions that start with your chord sequence (prefix match), plus a completion array—the rest of the progression—so you can finish your idea.',
+        operationId: 'completeProgressions',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['chords', 'key', 'scale'],
+                properties: {
+                  chords: { type: 'array', items: { type: 'string' }, description: 'Partial chord progression in order (e.g. C, G, Am)', example: ['C', 'G', 'Am'] },
+                  key: { type: 'string', description: 'Root note', example: 'C' },
+                  scale: { type: 'string', enum: ['major', 'minor'], example: 'major' },
+                  genre: { type: 'string', description: 'Filter by genre' },
+                  mood: { type: 'string', description: 'Filter by mood' },
+                  style: { type: 'string', description: 'Filter by style' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Matching progressions with completion',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CompleteResponse' },
+                example: {
+                  input_chords: ['C', 'G', 'Am'],
+                  input_romans: ['I', 'V', 'vi'],
+                  key: 'C',
+                  scale: 'major',
+                  matches: [
+                    {
+                      progression: ['C', 'G', 'Am', 'F'],
+                      roman_pattern: ['I', 'V', 'vi', 'IV'],
+                      genre: 'pop',
+                      style: 'upbeat',
+                      mood: 'upbeat',
+                      default_bpm: 120,
+                      completion: ['F'],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Invalid request (e.g. missing chords/key/scale, invalid chords)',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                example: { error: 'chords required', message: 'Provide chords as an array (e.g. ["C", "G", "Am"])' },
+              },
+            },
+          },
+          '401': { description: 'JWT required', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
     '/progressions/options': {
       get: {
         summary: 'Get allowed options',
         security: [{ bearerAuth: [] }],
-        description: 'Returns allowed values for keys, scales, moods, genres, and styles.',
+        description: 'Returns allowed values for keys, scales, moods, genres, and styles. If genre is provided, moods and styles are filtered to those available for that genre.',
         operationId: 'getOptions',
+        parameters: [
+          { name: 'genre', in: 'query', required: false, description: 'Filter moods and styles to this genre', schema: { type: 'string', example: 'anime' } },
+        ],
         responses: {
           '200': {
             description: 'Options',
@@ -328,6 +395,31 @@ const spec = {
                 style: { type: 'string' },
                 mood: { type: 'string' },
                 default_bpm: { type: 'number' },
+              },
+            },
+          },
+          message: { type: 'string' },
+        },
+      },
+      CompleteResponse: {
+        type: 'object',
+        properties: {
+          input_chords: { type: 'array', items: { type: 'string' } },
+          input_romans: { type: 'array', items: { type: 'string' } },
+          key: { type: 'string' },
+          scale: { type: 'string' },
+          matches: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                progression: { type: 'array', items: { type: 'string' } },
+                roman_pattern: { type: 'array', items: { type: 'string' } },
+                genre: { type: 'string' },
+                style: { type: 'string' },
+                mood: { type: 'string' },
+                default_bpm: { type: 'number' },
+                completion: { type: 'array', items: { type: 'string' }, description: 'Rest of the progression after your prefix (chord symbols to append)' },
               },
             },
           },

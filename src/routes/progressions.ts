@@ -1,6 +1,6 @@
 import express, { Response } from 'express';
 import { getProgressions, getProgressionsSimple, getOptions } from '../services/progressionService';
-import { resolveProgressions } from '../services/resolutionService';
+import { resolveProgressions, completeProgressions } from '../services/resolutionService';
 import { AuthenticatedRequest } from '../middleware';
 
 const router = express.Router();
@@ -34,13 +34,23 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
   res.json(result);
 });
 
-router.get('/options', (_req: AuthenticatedRequest, res: Response) => {
-  res.json(getOptions());
+router.get('/options', (req: AuthenticatedRequest, res: Response) => {
+  const genre = req.query.genre as string | undefined;
+  res.json(getOptions(genre || undefined));
 });
 
 router.post('/resolve', (req: AuthenticatedRequest, res: Response) => {
   const { chords, key, scale, genre, mood, style } = req.body || {};
   const result = resolveProgressions({ chords, key, scale, genre, mood, style });
+  if ('error' in result) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/complete', (req: AuthenticatedRequest, res: Response) => {
+  const { chords, key, scale, genre, mood, style } = req.body || {};
+  const result = completeProgressions({ chords, key, scale, genre, mood, style });
   if ('error' in result) {
     return res.status(400).json(result);
   }
