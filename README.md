@@ -2,6 +2,8 @@
 
 REST API for chord progressions by key, scale, mood, genre, and duration. Returns progressions as chord symbols (triads and extended harmony: 7ths, 9ths), with optional bar count or duration. Use it for composition, education, backing tracks, or any application that needs chord progression data.
 
+**Live demo:** [https://onefourfiveapi.onrender.com](https://onefourfiveapi.onrender.com)
+
 ## Tech stack
 
 - **Runtime:** Node.js 18+
