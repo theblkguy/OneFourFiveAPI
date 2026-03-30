@@ -27,7 +27,7 @@ The server listens on `http://localhost:3000` (or the value of `PORT`).
 
 ## Authentication
 
-Progression endpoints (`GET /progressions`, `POST /progressions/resolve`, `GET /progressions/options`) require a valid JWT. Send the token in the `Authorization` header: `Authorization: Bearer <token>`.
+Progression and chord endpoints (`GET /progressions`, `POST /progressions/resolve`, `POST /progressions/complete`, `POST /progressions/song`, `POST /chords/reharmonize`, `GET /progressions/options`) require a valid JWT. Send the token in the `Authorization` header: `Authorization: Bearer <token>`.
 
 The API supports two auth modes:
 
@@ -124,9 +124,13 @@ Returns a chord progression in the given key and scale.
 | `bpm`               | number | Tempo. If omitted, uses template default. |
 | `duration_seconds`  | number | Target length in seconds; API returns enough bars to fill approximately this duration. |
 | `bars`              | number | Exact number of bars. Default 8 if neither duration_seconds nor bars is set. |
+| `variation`         | number | If several templates share the same **mood** (and you did not pass `style`), pick one by index `0`, `1`, … |
+| `legacy`            | string | `true` or `1` to use legacy template matching (style **or** mood, style wins). Response may include `warnings`. |
 | `simple`            | string | `true` or `1` for a minimal response (summary, key, scale, bpm, progression, bars). |
 
-**Response:** `summary`, `key`, `scale`, `bpm`, `progression` (array of chord symbols), `bars`, and optionally `chords` (per-chord detail with roman numerals), `loop_description`, `duration_seconds`. Some templates return extended chords (e.g. Fmaj7, G7, Am7) and may include a `voicing` hint (e.g. `quartal`).
+**Template selection:** When **both** `style` and `mood` are sent, they must match a single template row together (see `style_mood_pairs` from `GET /progressions/options?genre=...`). With **style** alone, the first template with that style is used. With **mood** alone, if multiple templates share that mood, the API returns an error unless you pass `variation` or a `style`. Set `legacy=true` (or server env `PROGRESSION_LEGACY_MATCH=true`) for the previous behavior.
+
+**Response:** `summary`, `key`, `scale`, `bpm`, `progression` (array of chord symbols), `bars`, and optionally `chords` (per-chord detail with roman numerals), `loop_description`, `duration_seconds`. Some templates return extended chords (e.g. Fmaj7, G7, Am7) and may include a `voicing` hint (e.g. `quartal`). Optional `warnings` when legacy matching is used.
 
 **Example (200)**
 
@@ -167,6 +171,8 @@ Returns full progressions from templates that contain all of your input chords, 
 | `genre`  | string | no       | Filter by genre (pop, rock, jazz, etc.) |
 | `mood`   | string | no       | Filter by mood (calm, upbeat, dark, neutral) |
 | `style`  | string | no       | Filter by style (e.g. creep, epic, ballad) |
+
+**Limits:** Up to **200** chord symbols per request by default (override with env `MAX_CHORDS_RESOLVE`, maximum **500**).
 
 **Response:** `input_chords`, `input_romans`, `key`, `scale`, `matches` (array of progressions with `progression`, `roman_pattern`, `genre`, `style`, `mood`, `default_bpm`). If no templates match, `matches` is empty and `message` explains.
 
@@ -221,9 +227,23 @@ Returns full progressions that **start with** your chord sequence (prefix match)
 }
 ```
 
+### POST /progressions/song
+
+Build a **multi-section** arrangement (verse / chorus / bridge, etc.). Each section uses the same parameters as `GET /progressions` (per section: `genre`, `style`, `mood`, `variation`, `legacy`, `bpm`, `bars`, `duration_seconds`, optional `repeat`).
+
+**Request body (JSON):** `key`, `scale`, `sections` (array of `{ "label": "A", "genre": "pop", "style": "upbeat", "mood": "upbeat", ... }`).
+
+**Response:** `sections` (full progression payloads per section, each with `label`), `full_progression` (chords in order), `total_bars`, `approximate_duration_seconds`.
+
+### POST /chords/reharmonize
+
+Given a chord symbol and key/scale, returns **alternative spellings** (extensions, sus/add, tritone substitution for dominants).
+
+**Request body (JSON):** `chord`, `key`, `scale`, optional `kinds` (`["extension","sus_add","substitution"]`), optional `limit` (max alternatives).
+
 ### GET /progressions/options
 
-Returns allowed values for keys, scales, moods, genres, and styles.
+Returns allowed values for keys, scales, moods, genres, and styles, plus **`style_mood_pairs`** — use these pairs when sending both `style` and `mood` to `GET /progressions`.
 
 ### GET /health
 
@@ -231,7 +251,7 @@ Health check. Response: `{ "status": "ok", "service": "chord-progression-api" }`
 
 ## Example requests
 
-Replace `http://localhost:3000` with your server URL if different. All progression, resolve, and options requests **require** `Authorization: Bearer <token>` (see [Authentication](#authentication)).
+Replace `http://localhost:3000` with your server URL if different. All progression, resolve, song, reharmonize, and options requests **require** `Authorization: Bearer <token>` (see [Authentication](#authentication)).
 
 **With auth (register → token → progression)**
 
@@ -277,6 +297,30 @@ curl "http://localhost:3000/progressions?key=A&scale=minor&genre=pop&style=andal
 
 ```bash
 curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&style=basic" -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Jazz with mood only (several templates): use `variation` or specify `style`**
+
+```bash
+curl "http://localhost:3000/progressions?key=G&scale=major&genre=jazz&mood=neutral&variation=0" -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Reharmonize G7 in C major**
+
+```bash
+curl -X POST http://localhost:3000/chords/reharmonize \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"chord":"G7","key":"C","scale":"major"}'
+```
+
+**Song with A and B sections**
+
+```bash
+curl -X POST http://localhost:3000/progressions/song \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"key":"C","scale":"major","sections":[{"label":"A","genre":"pop","style":"upbeat","mood":"upbeat","bars":8},{"label":"B","genre":"pop","style":"ballad","mood":"calm","bars":8}]}'
 ```
 
 **Resolve: find progressions containing given chords**

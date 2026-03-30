@@ -10,6 +10,8 @@ export interface Template {
   defaultBpm: number;
   scaleRequired?: 'minor';
   voicing?: string;
+  /** Optional grouping (e.g. four_chord_pop, royal_road) for discovery and filtering. */
+  family?: string;
 }
 
 export type ChordQuality = 'major' | 'minor' | 'dim';
@@ -46,6 +48,43 @@ export interface ProgressionParams {
   bpm?: number;
   duration_seconds?: number;
   bars?: number;
+  /** When multiple templates share the same mood, pick by index (0-based). */
+  variation?: number;
+  /** If true, use legacy template resolution (style OR mood; style wins). */
+  legacy?: boolean | string;
+  /** Roman-level transforms applied after template resolution (same-length). */
+  transforms?: string[];
+  /** Steps for the `rotate` transform (default 1). */
+  transform_rotate_steps?: number;
+  /** Deterministic seed: shuffles transform order before applying (see progression service). */
+  seed?: number;
+  /** Restrict templates to this family id (see GET /progressions/options families). */
+  family?: string;
+}
+
+/** One section for POST /progressions/song */
+export interface SongSectionParams {
+  label: string;
+  genre?: string;
+  mood?: string;
+  style?: string;
+  variation?: number;
+  legacy?: boolean | string;
+  bpm?: number;
+  duration_seconds?: number;
+  bars?: number;
+  /** Repeat the section's chord loop this many times (1–32). */
+  repeat?: number;
+  transforms?: string[];
+  transform_rotate_steps?: number;
+  seed?: number;
+  family?: string;
+}
+
+export interface SongParams {
+  key: string;
+  scale: string;
+  sections: SongSectionParams[];
 }
 
 /** Params for resolveProgressions */
@@ -56,6 +95,10 @@ export interface ResolveParams {
   genre?: string;
   mood?: string;
   style?: string;
+  /** strict: all chords must appear in template (default). relaxed: rank by coverage. */
+  match?: 'strict' | 'relaxed';
+  /** Max matches when match=relaxed (default 20). */
+  limit?: number;
 }
 
 /** Error shape returned by services */

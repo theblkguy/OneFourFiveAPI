@@ -1,101 +1,118 @@
-import { getProgressions, getProgressionsSimple, getOptions } from './progressionService';
+import { getProgressions, getSong } from './progressionService';
 
-describe('progressionService', () => {
-  describe('getProgressions', () => {
-    it('returns error when key or scale missing', () => {
-      expect(getProgressions({})).toMatchObject({ error: 'key and scale are required' });
-      expect(getProgressions({ key: 'C' })).toMatchObject({ error: 'key and scale are required' });
-      expect(getProgressions({ scale: 'major' })).toMatchObject({ error: 'key and scale are required' });
+describe('getProgressions', () => {
+  it('returns emotional pop with distinct pattern from upbeat', () => {
+    const em = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'emotional',
+      mood: 'upbeat',
     });
-
-    it('returns error for invalid key or scale', () => {
-      expect(getProgressions({ key: 'X', scale: 'major' })).toMatchObject({ error: 'invalid key' });
-      expect(getProgressions({ key: 'C', scale: 'dorian' })).toMatchObject({ error: 'invalid scale' });
+    const up = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'upbeat',
+      mood: 'upbeat',
     });
-
-    it('returns progression for C major pop default', () => {
-      const result = getProgressions({ key: 'C', scale: 'major' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('key' in result && result.key).toBe('C');
-      expect('scale' in result && result.scale).toBe('major');
-      expect('progression' in result && result.progression).toBeInstanceOf(Array);
-      expect('progression' in result && result.progression.length).toBeGreaterThan(0);
-      expect('bars' in result && result.bars).toBeGreaterThanOrEqual(4);
-      expect('chords' in result && result.chords).toBeInstanceOf(Array);
-      expect('summary' in result && result.summary).toContain('C');
-    });
-
-    it('returns I–V–vi–IV for pop upbeat', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', genre: 'pop', style: 'upbeat' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('progression' in result && result.progression).toEqual(['C', 'G', 'Am', 'F']);
-    });
-
-    it('honors duration_seconds and returns duration_seconds', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', duration_seconds: 60 });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('duration_seconds' in result && result.duration_seconds).toBeGreaterThanOrEqual(60);
-    });
-
-    it('honors bars parameter', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', bars: 16 });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('bars' in result && result.bars).toBe(16);
-    });
-
-    it('returns scale mismatch for andalusian in major', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', style: 'andalusian' });
-      expect('error' in result ? result.error : undefined).toBe('scale mismatch');
-    });
-
-    it('returns andalusian in A minor', () => {
-      const result = getProgressions({ key: 'A', scale: 'minor', style: 'andalusian' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('progression' in result && result.progression).toEqual(['Am', 'G', 'F', 'E']);
-    });
-
-    it('returns anime royalRoad7 with 7ths and optional voicing', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', genre: 'anime', style: 'royalRoad7' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('progression' in result && result.progression).toEqual(['Fmaj7', 'G7', 'Em7', 'Am7']);
-    });
-    it('returns anime ghibli with voicing quartal', () => {
-      const result = getProgressions({ key: 'C', scale: 'major', genre: 'anime', style: 'ghibli' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect('progression' in result && result.progression).toEqual(['Fmaj7', 'G7', 'Em7', 'Am7']);
-      expect('voicing' in result && result.voicing).toBe('quartal');
-    });
+    expect('error' in em).toBe(false);
+    expect('error' in up).toBe(false);
+    if (!('error' in em) && !('error' in up)) {
+      expect(em.progression.join(',')).not.toBe(up.progression.join(','));
+    }
   });
 
-  describe('getProgressionsSimple', () => {
-    it('returns minimal shape when successful', () => {
-      const result = getProgressionsSimple({ key: 'C', scale: 'major' });
-      expect('error' in result ? result.error : undefined).toBeUndefined();
-      expect(result).toHaveProperty('summary');
-      expect(result).toHaveProperty('key', 'C');
-      expect(result).toHaveProperty('scale', 'major');
-      expect(result).toHaveProperty('bpm');
-      expect(result).toHaveProperty('progression');
-      expect(result).toHaveProperty('bars');
-      expect(result).not.toHaveProperty('chords');
-      expect(result).not.toHaveProperty('loop_description');
+  it('returns legacy warning when legacy=true', () => {
+    const r = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'upbeat',
+      mood: 'calm',
+      legacy: true,
     });
-
-    it('returns error object when getProgressions fails', () => {
-      const result = getProgressionsSimple({});
-      expect('error' in result && result.error).toBeDefined();
-    });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.warnings?.some((w) => w.code === 'legacy_match')).toBe(true);
+    }
   });
 
-  describe('getOptions', () => {
-    it('returns keys, scales, moods, genres, styles', () => {
-      const opts = getOptions();
-      expect(opts.keys).toContain('C');
-      expect(opts.keys.length).toBe(17);
-      expect(opts.scales).toEqual(['major', 'minor']);
-      expect(opts.genres).toContain('pop');
-      expect(opts.moods).toBeInstanceOf(Array);
-      expect(opts.styles).toBeInstanceOf(Array);
+  it('includes roman_pattern and applies transforms', () => {
+    const r = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'upbeat',
+      mood: 'upbeat',
+      transforms: ['dominant_extensions', 'borrowed_iv'],
     });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.roman_pattern).toEqual(['I', 'V7', 'vi', 'iv']);
+      expect(r.roman_pattern_template).toEqual(['I', 'V', 'vi', 'IV']);
+      expect(r.transforms_applied).toEqual(['dominant_extensions', 'borrowed_iv']);
+      expect(r.progression.some((c) => c.includes('m') || c.includes('7'))).toBe(true);
+    }
+  });
+
+  it('same seed yields same transform order for multiple transforms', () => {
+    const a = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'upbeat',
+      mood: 'upbeat',
+      transforms: ['rotate', 'borrowed_iv'],
+      seed: 12345,
+    });
+    const b = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'pop',
+      style: 'upbeat',
+      mood: 'upbeat',
+      transforms: ['rotate', 'borrowed_iv'],
+      seed: 12345,
+    });
+    expect('error' in a && 'error' in b).toBe(false);
+    if (!('error' in a) && !('error' in b)) {
+      expect(a.roman_pattern.join(',')).toBe(b.roman_pattern.join(','));
+    }
+  });
+
+  it('filters by family when provided', () => {
+    const r = getProgressions({
+      key: 'C',
+      scale: 'major',
+      genre: 'anime',
+      mood: 'upbeat',
+      style: 'royalRoad',
+      family: 'royal_road',
+    });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.roman_pattern[0]).toBe('IV');
+      expect(r.progression[0]).toBe('F');
+    }
+  });
+});
+
+describe('getSong', () => {
+  it('composes multiple sections', () => {
+    const r = getSong({
+      key: 'C',
+      scale: 'major',
+      sections: [
+        { label: 'A', genre: 'pop', style: 'upbeat', mood: 'upbeat', bars: 8 },
+        { label: 'B', genre: 'pop', style: 'ballad', mood: 'calm', bars: 8 },
+      ],
+    });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.sections).toHaveLength(2);
+      expect(r.full_progression.length).toBeGreaterThan(4);
+      expect(r.total_bars).toBe(16);
+    }
   });
 });

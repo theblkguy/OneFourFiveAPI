@@ -45,6 +45,21 @@ describe('resolutionService', () => {
     ('matches' in result ? result.matches : []).forEach((m) => expect(m.genre).toBe('pop'));
   });
 
+  it('relaxed match ranks partial coverage', () => {
+    const r = resolveProgressions({
+      chords: ['C', 'Am'],
+      key: 'C',
+      scale: 'major',
+      match: 'relaxed',
+      limit: 5,
+    });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.matches.length).toBeGreaterThan(0);
+      expect(r.matches[0].match_score).toBeDefined();
+    }
+  });
+
   it('returns empty matches and message when no template contains all chords', () => {
     const result = resolveProgressions({ chords: ['C', 'Db', 'Eb'], key: 'C', scale: 'major' });
     expect('error' in result ? result.error : undefined).toBeUndefined();
@@ -86,6 +101,21 @@ describe('completeProgressions', () => {
     expect(withCompletion).toBeDefined();
     expect(withCompletion?.completion).toContain('F');
     expect(withCompletion?.progression).toEqual(['C', 'G', 'Am', 'F']);
+  });
+
+  it('relaxed complete matches partial prefix', () => {
+    const r = completeProgressions({
+      chords: ['C', 'F'],
+      key: 'C',
+      scale: 'major',
+      match: 'relaxed',
+      limit: 10,
+    });
+    expect('error' in r).toBe(false);
+    if (!('error' in r)) {
+      expect(r.matches.length).toBeGreaterThan(0);
+      expect(r.matches[0].match_score).toBeDefined();
+    }
   });
 
   it('returns empty matches when chord order does not match any template prefix', () => {

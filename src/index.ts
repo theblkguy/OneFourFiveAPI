@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import progressionsRouter from './routes/progressions';
+import chordsRouter from './routes/chords';
 import authRouter from './routes/auth';
 import openApiSpec from './openapi/spec';
 import { requireAuth, progressionRateLimiter } from './middleware';
@@ -64,8 +65,16 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if ((req.path === '/progressions/resolve' || req.path === '/progressions/complete') && req.method === 'POST') {
-    return express.json({ limit: '100kb' })(req, res, next);
+  if (
+    (req.path === '/progressions/resolve' ||
+      req.path === '/progressions/complete' ||
+      req.path === '/progressions/song') &&
+    req.method === 'POST'
+  ) {
+    return express.json({ limit: '200kb' })(req, res, next);
+  }
+  if (req.path.startsWith('/chords') && req.method === 'POST') {
+    return express.json({ limit: '200kb' })(req, res, next);
   }
   if (req.path.startsWith('/auth')) {
     return express.json({ limit: '10kb' })(req, res, next);
@@ -95,6 +104,7 @@ app.use('/auth', authRouter);
 
 // Progression endpoints: require JWT; rate limit per user
 app.use('/progressions', requireAuth, progressionRateLimiter, progressionsRouter);
+app.use('/chords', requireAuth, progressionRateLimiter, chordsRouter);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'chord-progression-api' });
