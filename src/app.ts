@@ -158,4 +158,11 @@ app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error', message: 'An unexpected error occurred' });
 });
 
+// Warm DB schema check during cold start on Vercel (auth routes also guard per-request)
+if (isVercel) {
+  void ensureDatabaseReady().catch((err) => {
+    console.error('Database warm-up failed:', err);
+  });
+}
+
 export default app;

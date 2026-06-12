@@ -7,6 +7,7 @@ module.exports = {
   coverageDirectory: 'coverage',
   verbose: true,
   preset: 'ts-jest',
+  setupFiles: ['<rootDir>/jest.setup.ts'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
   },

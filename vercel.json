@@ -1,11 +1,8 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
-  ],
   "functions": {
-    "api/index.ts": {
+    "src/app.ts": {
       "maxDuration": 30,
       "memory": 1024
     }

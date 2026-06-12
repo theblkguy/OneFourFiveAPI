@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import type { createRemoteJWKSet } from 'jose';
 import type { JwtPayload } from '../types';
 
 /** JWT secret for external consumers - used only when NOT using Neon Auth */
@@ -18,15 +18,23 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /** Lazy-initialized Neon Auth JWKS. Uses NEON_AUTH_URL from env. */
-let neonAuthJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+type NeonAuthJwks = ReturnType<typeof createRemoteJWKSet>;
+let neonAuthJwksPromise: Promise<NeonAuthJwks | null> | null = null;
 
-function getNeonAuthJwks(): ReturnType<typeof createRemoteJWKSet> | null {
+async function getNeonAuthJwks(): Promise<NeonAuthJwks | null> {
   const url = process.env.NEON_AUTH_URL;
   if (!url) return null;
-  if (!neonAuthJwks) {
-    neonAuthJwks = createRemoteJWKSet(new URL(`${url}/.well-known/jwks.json`));
+  if (!neonAuthJwksPromise) {
+    neonAuthJwksPromise = import('jose')
+      .then(({ createRemoteJWKSet }) =>
+        createRemoteJWKSet(new URL(`${url}/.well-known/jwks.json`)),
+      )
+      .catch((err) => {
+        console.error('Failed to load jose for Neon Auth:', err);
+        return null;
+      });
   }
-  return neonAuthJwks;
+  return neonAuthJwksPromise;
 }
 
 /**
@@ -40,9 +48,10 @@ async function verifyTokenAsync(authHeader: string | undefined): Promise<JwtPayl
 
   const neonUrl = process.env.NEON_AUTH_URL;
   if (neonUrl) {
-    const JWKS = getNeonAuthJwks();
-    if (!JWKS) return null;
     try {
+      const JWKS = await getNeonAuthJwks();
+      if (!JWKS) return null;
+      const { jwtVerify } = await import('jose');
       const { payload } = await jwtVerify(token, JWKS, {
         issuer: new URL(neonUrl).origin,
       });
