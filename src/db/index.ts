@@ -1,30 +1,39 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 
-// Get DATABASE_URL from environment
-const databaseUrl = process.env.DATABASE_URL;
+const missingDatabaseUrlMessage =
+  'DATABASE_URL is not set. Copy .env.example to .env and set DATABASE_URL (get a connection string from https://console.neon.tech).';
 
-if (!databaseUrl) {
-  const msg =
-    'DATABASE_URL is not set. Copy .env.example to .env and set DATABASE_URL (get a connection string from https://console.neon.tech).';
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(msg);
+let sqlClient: NeonQueryFunction<false, false> | null = null;
+
+function getDatabaseUrl(): string {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(missingDatabaseUrlMessage);
   }
-  throw new Error(msg);
+  return databaseUrl;
 }
 
-// Create Neon SQL client
-export const sql = neon(databaseUrl);
+function getSqlClient(): NeonQueryFunction<false, false> {
+  if (!sqlClient) {
+    sqlClient = neon(getDatabaseUrl());
+  }
+  return sqlClient;
+}
+
+/** Lazy Neon client — avoids crashing at import time when DATABASE_URL is unset (e.g. during Vercel cold start). */
+export const sql = ((strings: TemplateStringsArray, ...values: unknown[]) =>
+  getSqlClient()(strings, ...values)) as NeonQueryFunction<false, false>;
 
 // Initialize database schema
 export async function initializeDatabase() {
-  if (!databaseUrl) {
+  if (!process.env.DATABASE_URL) {
     console.warn('Skipping database initialization - DATABASE_URL not set');
     return;
   }
 
   try {
     // Create users table if it doesn't exist
-    await sql`
+    await getSqlClient()`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,

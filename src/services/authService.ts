@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { createUser, findByEmail } from '../data/userStoreDb';
 import type { AuthSuccess, User, JwtPayload, RegisterBody, LoginBody } from '../types';
