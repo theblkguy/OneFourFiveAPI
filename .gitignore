@@ -116,6 +116,12 @@ dist
 # Docusaurus cache and generated files
 .docusaurus
 
+# Vercel serverless entry (api/index.ts) — deploy compiles TypeScript; do not commit outputs
+api/*.js
+api/*.js.map
+api/*.d.ts
+api/*.d.ts.map
+
 # Serverless directories
 .serverless/
 
